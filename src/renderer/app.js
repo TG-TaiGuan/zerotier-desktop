@@ -54,6 +54,7 @@ const STRINGS = {
     'refresh.now': 'Refresh now',
     'theme.toggle': 'Toggle theme',
     'lang.toggle': 'Switch language',
+    'list.toggle': 'Toggle network list',
     'type.static': 'Static', 'type.dynamic': 'Dynamic', 'type.unknown': 'Unknown',
   },
   zh: {
@@ -104,6 +105,7 @@ const STRINGS = {
     'refresh.now': '立即刷新',
     'theme.toggle': '切换主题',
     'lang.toggle': '切换语言',
+    'list.toggle': '收起/展开网络列表',
     'type.static': '静态', 'type.dynamic': '动态', 'type.unknown': '未知',
   },
 };
@@ -143,6 +145,7 @@ const store = (() => { try { return window.localStorage; } catch (e) { return { 
 let lang = store.getItem('zt.lang') || 'en';
 let theme = store.getItem('zt.theme') || 'dark';
 let interval = parseInt(store.getItem('zt.interval'), 10); if (isNaN(interval)) interval = 10;
+let listCollapsed = store.getItem('zt.listCollapsed') === '1';
 
 function t(key) { return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key; }
 
@@ -165,7 +168,10 @@ const el = {
   themeBtn: document.getElementById('themeBtn'),
   reconnectBtn: document.getElementById('reconnectBtn'),
   networkSplit: document.getElementById('networkSplit'),
+  netList: document.getElementById('netList'),
   netItems: document.getElementById('netItems'),
+  netIndicator: document.getElementById('netIndicator'),
+  listToggleBtn: document.getElementById('listToggleBtn'),
   networkCount: document.getElementById('networkCount'),
   netDetail: document.getElementById('netDetail'),
   footer: document.getElementById('footer'),
@@ -230,6 +236,30 @@ function applyInterval(v) {
     b.classList.toggle('active', parseInt(b.getAttribute('data-int'), 10) === v);
   });
   setPoll();
+}
+
+/* ---------- network list collapse + selection indicator ---------- */
+function applyList() {
+  if (!el.networkSplit) return;
+  el.networkSplit.classList.toggle('collapsed', listCollapsed);
+  if (el.listToggleBtn) el.listToggleBtn.classList.toggle('active', listCollapsed);
+}
+function toggleList() {
+  listCollapsed = !listCollapsed;
+  store.setItem('zt.listCollapsed', listCollapsed ? '1' : '0');
+  applyList();
+  setTimeout(moveIndicator, 300); // reposition after the width transition
+}
+function moveIndicator() {
+  const list = el.netList; const ind = el.netIndicator;
+  if (!list || !ind) return;
+  const sel = list.querySelector('.net-item.selected');
+  if (!sel) { if (gsap) gsap.to(ind, { height: 0, duration: 0.2 }); else ind.style.height = '0'; return; }
+  const lr = list.getBoundingClientRect();
+  const sr = sel.getBoundingClientRect();
+  const top = sr.top - lr.top;
+  if (gsap && !MO) gsap.to(ind, { top, height: sr.height, duration: 0.4, ease: 'power3.out' });
+  else { ind.style.top = top + 'px'; ind.style.height = sr.height + 'px'; }
 }
 
 /* ---------- status dot pulse ---------- */
@@ -340,6 +370,7 @@ function renderNetworks(res) {
   if (!state.selectedId || ids.indexOf(state.selectedId) < 0) { state.selectedId = nets[0].id; changed = true; }
   buildList(nets);
   animateList();
+  moveIndicator();
   if (changed) selectNetwork(state.selectedId);
   return true;
 }
@@ -350,6 +381,7 @@ function selectNetwork(id) {
   if (!net) { showDetailEmpty(); return; }
   state.selectedId = id;
   el.netItems.querySelectorAll('.net-item').forEach((node) => { node.classList.toggle('selected', node.getAttribute('data-id') === id); });
+  moveIndicator();
   renderDetail(net);
   loadArp(net, false); // full load (loading state + animation)
 }
@@ -468,7 +500,7 @@ function animateEntrance() {
   });
 }
 function animateList() { runGsap(() => gsap.from('.net-item', { x: -12, opacity: 0, duration: 0.4, ease: 'power2.out', stagger: 0.06 })); }
-function animateDetail() { runGsap(() => gsap.from('.detail-scroll > *', { y: 12, opacity: 0, duration: 0.45, ease: 'power2.out', stagger: 0.07 })); }
+function animateDetail() { runGsap(() => gsap.fromTo('.detail-scroll', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' })); }
 function animateArpRows() { runGsap(() => gsap.from('#arpBody tr', { opacity: 0, y: 6, duration: 0.3, ease: 'power2.out', stagger: 0.02 })); }
 
 /* ---------- refresh ---------- */
@@ -547,6 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
   applyLang();
   applyInterval(interval);
+  applyList();
   animateEntrance();
 
   el.joinForm.addEventListener('submit', onJoin);
@@ -599,6 +632,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // theme + language toggles
   el.themeBtn.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; store.setItem('zt.theme', theme); applyTheme(); });
   el.langBtn.addEventListener('click', () => { lang = lang === 'en' ? 'zh' : 'en'; store.setItem('zt.lang', lang); applyLang(); });
+
+  el.listToggleBtn.addEventListener('click', toggleList);
+  window.addEventListener('resize', moveIndicator);
 
   // manual reconnect (auto-recovery is also handled by the status heartbeat)
   el.reconnectBtn.addEventListener('click', () => {

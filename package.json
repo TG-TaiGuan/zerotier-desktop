@@ -19,6 +19,9 @@
     "directories": {
       "output": "dist"
     },
+    "electronLanguages": [
+      "en-US"
+    ],
     "files": [
       "src/**/*",
       "package.json"
@@ -40,8 +43,5 @@
     "electron": "^42.4.1",
     "electron-builder": "^26.15.3",
     "playwright": "^1.61.0"
-  },
-  "dependencies": {
-    "gsap": "^3.15.0"
   }
 }

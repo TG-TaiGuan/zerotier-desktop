@@ -179,12 +179,14 @@ html, body {
 
 /* ---------- Split: list + detail ---------- */
 .split { display: flex; padding: 0; overflow: hidden; min-height: 440px; }
-.net-list { width: 288px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--stroke-soft); background: var(--field-2); }
+.net-list { width: 288px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--stroke-soft); background: var(--field-2); transition: width .28s ease, opacity .2s ease, border-color .2s ease; overflow: hidden; }
+.split.collapsed .net-list { width: 0; opacity: 0; border-right-color: transparent; }
+.net-indicator { position: absolute; left: 0; top: 0; width: 3px; height: 0; background: var(--accent); z-index: 5; border-radius: 0 3px 3px 0; box-shadow: 0 0 12px rgba(255, 165, 0, .55); pointer-events: none; }
 .net-list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px 16px 10px; }
 .net-items { display: flex; flex-direction: column; gap: 6px; padding: 4px 10px 14px; overflow-y: auto; }
 .net-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer; color: var(--text); font-family: var(--font); background: transparent; border: 1px solid transparent; border-radius: var(--radius-xs); padding: 10px 12px; transition: background .16s, border-color .16s; will-change: transform; }
 .net-item:hover { background: var(--hover); }
-.net-item.selected { background: linear-gradient(100deg, rgba(255, 165, 0, .16), rgba(255, 165, 0, .03)); border-color: rgba(255, 165, 0, .42); box-shadow: inset 2px 0 0 var(--accent); }
+.net-item.selected { background: linear-gradient(100deg, rgba(255, 165, 0, .16), rgba(255, 165, 0, .03)); border-color: rgba(255, 165, 0, .42); }
 :root[data-theme="light"] .net-item.selected { background: linear-gradient(100deg, rgba(230, 126, 34, .16), rgba(230, 126, 34, .03)); }
 .net-item-main { display: flex; flex-direction: column; line-height: 1.25; flex: 1; min-width: 0; }
 .net-item-name { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
