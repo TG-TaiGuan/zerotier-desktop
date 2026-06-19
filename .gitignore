@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+.preview/
+.preview2/
+.preview*/
+.npmrc
+*.log
+.DS_Store
+Thumbs.db
+.env

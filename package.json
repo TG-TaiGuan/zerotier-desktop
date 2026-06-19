@@ -1,0 +1,47 @@
+{
+  "name": "zerotier-desktop",
+  "productName": "ZeroTier Desktop",
+  "version": "0.1.0",
+  "description": "ZeroTier desktop client skeleton built with Electron",
+  "main": "src/main.js",
+  "license": "MIT",
+  "author": "",
+  "scripts": {
+    "start": "electron .",
+    "selftest": "electron . --selftest",
+    "test": "node test/zt-client.test.js",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.zerotier.desktop",
+    "productName": "ZeroTier Desktop",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3",
+    "playwright": "^1.61.0"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0"
+  }
+}
