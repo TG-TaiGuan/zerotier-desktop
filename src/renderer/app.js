@@ -13,8 +13,10 @@ const STRINGS = {
     'node.offline': 'offline',
     'node.online': 'online',
     'node.unavailable': 'service unavailable',
+    'node.reconnecting': 'Reconnecting…',
     'node.v': 'v',
     'node.fallback': 'TCP fallback',
+    'reconnect.button': 'Reconnect',
     'join.placeholder': 'Join a network — 16 hex chars',
     'join.button': 'Join',
     'join.invalid': 'Network ID must be 16 hex characters.',
@@ -61,8 +63,10 @@ const STRINGS = {
     'node.offline': '离线',
     'node.online': '在线',
     'node.unavailable': '服务不可用',
+    'node.reconnecting': '正在重连…',
     'node.v': 'v',
     'node.fallback': 'TCP 回退',
+    'reconnect.button': '重新连接',
     'join.placeholder': '加入网络 — 16 位十六进制',
     'join.button': '加入',
     'join.invalid': '网络 ID 必须是 16 位十六进制。',
@@ -130,6 +134,7 @@ function makeMockBridge() {
 }
 
 const ZT = window.zerotier || makeMockBridge();
+if (ZT._mock) window.zerotier = ZT; // expose mock for the standalone browser preview / testing
 const gsap = window.gsap || null;
 const SELFTEST = new URLSearchParams(window.location.search).get('selftest') === '1';
 const MO = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -158,6 +163,7 @@ const el = {
   intervalMenu: document.getElementById('intervalMenu'),
   langBtn: document.getElementById('langBtn'),
   themeBtn: document.getElementById('themeBtn'),
+  reconnectBtn: document.getElementById('reconnectBtn'),
   networkSplit: document.getElementById('networkSplit'),
   netItems: document.getElementById('netItems'),
   networkCount: document.getElementById('networkCount'),
@@ -167,8 +173,9 @@ const el = {
   toast: document.getElementById('toast'),
 };
 
-const state = { networks: [], selectedId: null, arpToken: 0 };
+const state = { networks: [], selectedId: null, arpToken: 0, online: false };
 let pollTimer = null;
+let statusTimer = null;
 let firstRefreshDone = false;
 let pulseTween = null;
 
@@ -211,7 +218,8 @@ function intervalShort(v) { return v === 0 ? t('interval.off') : t('interval.' +
 function updateIntervalLabel() { if (el.intervalLabel) el.intervalLabel.textContent = intervalShort(interval); }
 function setPoll() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-  if (interval > 0) pollTimer = setInterval(safeRefresh, interval * 1000);
+  // Data-refresh interval (status is always monitored by the heartbeat).
+  if (interval > 0) pollTimer = setInterval(refreshData, interval * 1000);
 }
 function applyInterval(v) {
   interval = v;
@@ -252,25 +260,31 @@ function hideToast() {
 }
 
 /* ---------- render: node status ---------- */
+function applyConnectionState() {
+  // Reconnect button shows only when offline; status heartbeat keeps trying to recover.
+  if (el.reconnectBtn) el.reconnectBtn.classList.toggle('show', !state.online);
+}
+
 function renderStatus(res) {
-  if (!res || !res.ok) {
-    el.nodeStatus.dataset.state = 'offline';
-    el.nodeAddress.textContent = t('node.offline');
-    el.nodeSub.textContent = (res && res.error) ? res.error : t('node.unavailable');
-    setPulse('offline');
-    return false;
+  const reachable = !!(res && res.ok);
+  const data = reachable ? (res.data || {}) : {};
+  const online = reachable && !!data.online;
+  state.online = online;
+  el.nodeStatus.dataset.state = online ? 'online' : 'offline';
+  if (online) {
+    el.nodeAddress.textContent = data.address || '—';
+    const parts = [];
+    if (data.version) parts.push(t('node.v') + data.version);
+    if (data.tcpFallbackActive) parts.push(t('node.fallback'));
+    parts.push(t('node.online'));
+    el.nodeSub.textContent = parts.join(' · ');
+  } else {
+    el.nodeAddress.textContent = reachable ? (data.address || '—') : t('node.offline');
+    el.nodeSub.textContent = reachable ? t('node.offline') : t('node.reconnecting');
   }
-  const s = res.data || {};
-  const st = s.online ? 'online' : 'offline';
-  el.nodeStatus.dataset.state = st;
-  el.nodeAddress.textContent = s.address || '—';
-  const parts = [];
-  if (s.version) parts.push(t('node.v') + s.version);
-  if (s.tcpFallbackActive) parts.push(t('node.fallback'));
-  parts.push(s.online ? t('node.online') : t('node.offline'));
-  el.nodeSub.textContent = parts.join(' · ');
-  setPulse(st);
-  return true;
+  setPulse(online ? 'online' : 'offline');
+  applyConnectionState();
+  return online;
 }
 
 /* ---------- network list ---------- */
@@ -469,6 +483,19 @@ async function refresh() {
 }
 function safeRefresh() { refresh().catch((e) => console.error('refresh failed:', e)); }
 
+// Always-on status heartbeat: keeps the dot current and auto-recovers on
+// reconnect, even when the data-refresh interval is set to "off".
+function refreshStatusOnly() {
+  ZT.getStatus().then((res) => {
+    const wasOnline = !!state.online;
+    renderStatus(res);
+    if (state.online && !wasOnline) refreshData(); // recovered -> refresh networks
+  }).catch((e) => console.error('status poll failed:', e));
+}
+function refreshData() {
+  return ZT.getNetworks().then(renderNetworks).catch((e) => console.error('networks poll failed:', e));
+}
+
 /* ---------- self-test ---------- */
 async function reportSelfTestIfNeeded(results) {
   if (!SELFTEST) return;
@@ -573,8 +600,17 @@ document.addEventListener('DOMContentLoaded', () => {
   el.themeBtn.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; store.setItem('zt.theme', theme); applyTheme(); });
   el.langBtn.addEventListener('click', () => { lang = lang === 'en' ? 'zh' : 'en'; store.setItem('zt.lang', lang); applyLang(); });
 
+  // manual reconnect (auto-recovery is also handled by the status heartbeat)
+  el.reconnectBtn.addEventListener('click', () => {
+    spinRefreshIcon(el.refreshIcon);
+    el.reconnectBtn.disabled = true;
+    safeRefresh();
+    setTimeout(() => { el.reconnectBtn.disabled = false; }, 800);
+  });
+
   safeRefresh();
+  statusTimer = setInterval(refreshStatusOnly, 5000); // always-on connection monitor
   setPoll();
 });
 
-window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
+window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); if (statusTimer) clearInterval(statusTimer); });
