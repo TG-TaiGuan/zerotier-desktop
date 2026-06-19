@@ -1,10 +1,15 @@
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Node
 node_modules/
+
+# Build output
 dist/
-out/
-.preview/
-.preview2/
-.preview*/
-.npmrc
+release/
+
+# Misc
 *.log
 .DS_Store
 Thumbs.db

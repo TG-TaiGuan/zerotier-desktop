@@ -121,7 +121,7 @@ function makeMockBridge() {
     ]),
     joinNetwork: () => ok({ status: 'REQUESTING_CONFIGURATION' }),
     leaveNetwork: () => ok({}),
-    getArp: (_ip, cidr) => {
+    getArp: (ip, cidr) => {
       const base = (cidr || '10.147.20.0/24').split('/')[0].split('.').slice(0, 3).join('.');
       const rows = [
         { ip: base + '.1', mac: '66-9f-f3-7d-5e-4a', type: 'dynamic' },
@@ -129,13 +129,20 @@ function makeMockBridge() {
         { ip: base + '.88', mac: '66-ec-35-bf-16-cd', type: 'dynamic' },
         { ip: base + '.203', mac: '66-70-34-6e-c0-60', type: 'dynamic' },
       ];
-      return ok(rows);
+      return Promise.resolve({ ok: true, rows, interface: ip, index: '0xf' });
     },
     reportSelfTest: () => {},
   };
 }
 
-const ZT = window.zerotier || makeMockBridge();
+const _invoke = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core.invoke : null;
+const ZT = _invoke ? {
+  getStatus: () => _invoke('get_status'),
+  getNetworks: () => _invoke('get_networks'),
+  joinNetwork: (id) => _invoke('join_network', { id }),
+  leaveNetwork: (id) => _invoke('leave_network', { id }),
+  getArp: (ip, cidr) => _invoke('get_arp', { ip, cidr }),
+} : makeMockBridge();
 if (ZT._mock) window.zerotier = ZT; // expose mock for the standalone browser preview / testing
 const gsap = window.gsap || null;
 const SELFTEST = new URLSearchParams(window.location.search).get('selftest') === '1';
@@ -144,7 +151,7 @@ const store = (() => { try { return window.localStorage; } catch (e) { return { 
 
 let lang = store.getItem('zt.lang') || 'en';
 let theme = store.getItem('zt.theme') || 'dark';
-let interval = parseInt(store.getItem('zt.interval'), 10); if (isNaN(interval)) interval = 10;
+let interval = parseInt(store.getItem('zt.interval'), 10); if (isNaN(interval)) interval = 0;
 let listCollapsed = store.getItem('zt.listCollapsed') === '1';
 
 function t(key) { return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key; }
@@ -196,18 +203,13 @@ function shortId(id) { return String(id || '').slice(0, 10); }
 /* ---------- i18n apply ---------- */
 function applyLang() {
   document.documentElement.lang = lang;
+  // In-place relabel of every [data-i18n] element (including dynamic detail/ARP
+  // labels) — never rebuilds, so the ARP table is preserved on language switch.
   document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = t(node.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-ph]').forEach((node) => { node.placeholder = t(node.getAttribute('data-i18n-ph')); });
   document.querySelectorAll('[data-i18n-title]').forEach((node) => { node.title = t(node.getAttribute('data-i18n-title')); });
   if (el.langBtn) el.langBtn.textContent = lang === 'en' ? '中' : 'EN';
   updateIntervalLabel();
-  // re-render dynamic labels for the currently selected network
-  if (state.selectedId) {
-    const net = state.networks.find((n) => n.id === state.selectedId);
-    if (net) renderDetail(net);
-  } else {
-    showDetailEmpty();
-  }
 }
 
 /* ---------- theme ---------- */
@@ -394,8 +396,8 @@ function showDetailEmpty() {
 }
 
 /* ---------- detail ---------- */
-function metaRow(k, v, id) {
-  return '<div class="detail-row"><span class="k">' + escapeHtml(k) + '</span>' +
+function metaRow(key, v, id) {
+  return '<div class="detail-row"><span class="k" data-i18n="' + key + '">' + escapeHtml(t(key)) + '</span>' +
     '<span class="v' + (id ? '" id="' + id : '') + '">' + escapeHtml(v) + '</span></div>';
 }
 function renderDetail(net) {
@@ -410,19 +412,19 @@ function renderDetail(net) {
         '</div>' +
         '<div class="detail-head-right">' +
           statusPill(net.status) +
-          '<button class="btn btn-danger btn-sm leave-btn" type="button" data-id="' + escapeHtml(net.id) + '">' + escapeHtml(t('leave.short')) + '</button>' +
+          '<button class="btn btn-danger btn-sm leave-btn" type="button" data-id="' + escapeHtml(net.id) + '" data-i18n="leave.short">' + escapeHtml(t('leave.short')) + '</button>' +
         '</div>' +
       '</div>' +
       '<div class="detail-meta">' +
-        metaRow(t('meta.interface'), ipOnly + ' --- …', 'detailIfc') +
-        metaRow(t('meta.type'), net.type || '—') +
-        metaRow(t('meta.mac'), net.mac || '—') +
-        metaRow(t('meta.mtu'), String(net.mtu != null ? net.mtu : '—')) +
-        metaRow(t('meta.ips'), ips) +
+        metaRow('meta.interface', ipOnly + ' --- …', 'detailIfc') +
+        metaRow('meta.type', net.type || '—') +
+        metaRow('meta.mac', net.mac || '—') +
+        metaRow('meta.mtu', String(net.mtu != null ? net.mtu : '—')) +
+        metaRow('meta.ips', ips) +
       '</div>' +
       '<div class="arp-section">' +
         '<div class="arp-head">' +
-          '<span class="panel-title">' + escapeHtml(t('neighbors.title')) + '</span>' +
+          '<span class="panel-title" data-i18n="neighbors.title">' + escapeHtml(t('neighbors.title')) + '</span>' +
           '<div class="arp-head-right">' +
             '<span class="panel-count" id="arpCount">…</span>' +
             '<button class="btn btn-ghost btn-sm arp-refresh" type="button" data-i18n-title="refresh.now" aria-label="Refresh ARP">' +
@@ -432,11 +434,11 @@ function renderDetail(net) {
         '</div>' +
         '<div class="arp-wrap">' +
           '<table class="arp-table">' +
-            '<thead><tr><th>' + escapeHtml(t('arp.addr')) + '</th><th>' + escapeHtml(t('arp.phys')) + '</th><th>' + escapeHtml(t('arp.type')) + '</th></tr></thead>' +
-            '<tbody id="arpBody"><tr><td colspan="3" class="empty">' + escapeHtml(t('arp.loading')) + '</td></tr></tbody>' +
+            '<thead><tr><th data-i18n="arp.addr">' + escapeHtml(t('arp.addr')) + '</th><th data-i18n="arp.phys">' + escapeHtml(t('arp.phys')) + '</th><th data-i18n="arp.type">' + escapeHtml(t('arp.type')) + '</th></tr></thead>' +
+            '<tbody id="arpBody"><tr><td colspan="3" class="empty" data-i18n="arp.loading">' + escapeHtml(t('arp.loading')) + '</td></tr></tbody>' +
           '</table>' +
         '</div>' +
-        '<div class="arp-note">' + escapeHtml(t('arp.note')) + '</div>' +
+        '<div class="arp-note" data-i18n="arp.note">' + escapeHtml(t('arp.note')) + '</div>' +
       '</div>' +
     '</div>';
   animateDetail();
@@ -500,7 +502,7 @@ function animateEntrance() {
   });
 }
 function animateList() { runGsap(() => gsap.from('.net-item', { x: -12, opacity: 0, duration: 0.4, ease: 'power2.out', stagger: 0.06 })); }
-function animateDetail() { runGsap(() => gsap.fromTo('.detail-scroll', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' })); }
+function animateDetail() { runGsap(() => gsap.fromTo('.detail-scroll', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power2.out' })); }
 function animateArpRows() { runGsap(() => gsap.from('#arpBody tr', { opacity: 0, y: 6, duration: 0.3, ease: 'power2.out', stagger: 0.02 })); }
 
 /* ---------- refresh ---------- */
