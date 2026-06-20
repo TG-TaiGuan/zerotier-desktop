@@ -7,6 +7,8 @@ use serde_json::{json, Value};
 use std::fs;
 use std::process::Command;
 use std::time::Duration;
+use tauri::Manager;
+use tauri::Emitter;
 
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 9993;
@@ -177,11 +179,63 @@ fn leave_network(id: String) -> Value {
 #[tauri::command]
 fn get_arp(ip: String, cidr: String) -> Value { do_arp(&ip, &cidr) }
 
+#[tauri::command]
+fn minimize_to_tray(app: tauri::AppHandle) {
+    // Hide every window (label-agnostic, so restore always works).
+    for w in app.webview_windows().values() { let _ = w.hide(); }
+}
+
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // A second launch just summons the existing window to the front.
+            for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); }
+        }))
         .invoke_handler(tauri::generate_handler![
-            get_status, get_networks, join_network, leave_network, get_arp
+            get_status, get_networks, join_network, leave_network, get_arp,
+            minimize_to_tray, quit_app
         ])
+        // Intercept the window's X (close) button — the frontend asks how to handle it
+        // (minimize-to-tray vs exit, with a remembered choice).
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.app_handle().emit("close-requested", ());
+            }
+        })
+        .setup(|app| {
+            use tauri::menu::{Menu, MenuItem};
+            use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+            let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+            let icon = app.default_window_icon().expect("window icon").clone();
+            TrayIconBuilder::with_id("main-tray")
+                .icon(icon)
+                .tooltip("ZeroTier Desktop")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => { for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); } }
+                    "quit" => { app.exit(0); }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        let app = tray.app_handle();
+                        for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); }
+                    }
+                })
+                .build(app)?;
+            // Ensure the window is visible and focused on startup (never starts hidden).
+            for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

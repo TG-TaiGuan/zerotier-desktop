@@ -1,133 +1,66 @@
 'use strict';
 
 /* ============================================================
-   ZeroTier Desktop — renderer (master-detail, themed, i18n)
+   ZeroTier Desktop — renderer (ZeroTier Central-style UI)
    ============================================================ */
 
-/* ---------- i18n ---------- */
 const STRINGS = {
   en: {
-    'app.subtitle': 'Local Node',
-    'node.connecting': 'connecting',
-    'node.waiting': 'waiting for service',
-    'node.offline': 'offline',
-    'node.online': 'online',
-    'node.unavailable': 'service unavailable',
-    'node.reconnecting': 'Reconnecting…',
-    'node.v': 'v',
-    'node.fallback': 'TCP fallback',
-    'reconnect.button': 'Reconnect',
-    'join.placeholder': 'Join a network — 16 hex chars',
-    'join.button': 'Join',
-    'join.invalid': 'Network ID must be 16 hex characters.',
-    'join.sent': 'Join request sent for ',
-    'join.failed': 'Join failed: ',
-    'leave.confirm': 'Leave network ',
-    'leave.short': 'Leave',
-    'leave.done': 'Left ',
-    'leave.failed': 'Leave failed: ',
-    'networks.title': 'Networks',
-    'networks.empty': 'Not joined to any network. Enter a Network ID above to join.',
-    'networks.loadError': 'Unable to load networks.',
-    'networks.loading': 'Loading networks',
+    'networks.title': 'Networks', 'networks.empty': 'Not joined to any network. Enter a Network ID above to join.', 'networks.loadError': 'Unable to load networks.',
     'detail.empty': 'Select a network to view its neighbors',
-    'meta.interface': 'Interface',
-    'meta.type': 'Type',
-    'meta.mac': 'MAC',
-    'meta.mtu': 'MTU',
-    'meta.ips': 'Managed IPs',
+    'meta.id': 'NETWORK ID', 'meta.type': 'Type', 'meta.ips': 'Managed IPs',
+    'stat.neighbors': 'Neighbors', 'stat.iface': 'Interface', 'stat.mtu': 'MTU',
     'neighbors.title': 'Neighbors (ARP)',
-    'arp.addr': 'Internet Address',
-    'arp.phys': 'Physical Address',
-    'arp.type': 'Type',
-    'arp.loading': 'Loading neighbors…',
-    'arp.empty': 'No same-subnet neighbors found.',
-    'arp.error': 'Unable to read ARP table.',
-    'arp.note': 'Same-subnet entries from the OS ARP cache for this interface.',
-    'footer.note': 'local control · 127.0.0.1:9993',
-    'updated.never': 'not refreshed yet',
-    'updated': 'Updated ',
-    'interval.off': 'Off',
-    'interval.5': '5s', 'interval.10': '10s', 'interval.30': '30s',
-    'interval.menuOff': 'Manual (off)',
-    'interval.menu5': 'Every 5s', 'interval.menu10': 'Every 10s', 'interval.menu30': 'Every 30s',
-    'refresh.now': 'Refresh now',
-    'theme.toggle': 'Toggle theme',
-    'lang.toggle': 'Switch language',
-    'list.toggle': 'Toggle network list',
+    'node.connecting': 'connecting', 'node.offline': 'offline', 'node.online': 'online', 'node.reconnecting': 'Reconnecting…', 'node.v': 'v', 'node.fallback': 'TCP fallback',
+    'join.placeholder': 'Join a network — 16 hex chars', 'join.button': 'Join', 'join.invalid': 'Network ID must be 16 hex characters.', 'join.sent': 'Join request sent for ', 'join.failed': 'Join failed: ', 'join.exists': 'Already joined — showing it',
+    'leave.short': 'Leave', 'leave.confirm': 'Leave network ', 'leave.done': 'Left ', 'leave.failed': 'Leave failed: ', 'leave.rejoin': 'Reconnect', 'leave.hint': 'You left this network — click Reconnect to reconnect.',
+    'arp.addr': 'Internet Address', 'arp.phys': 'Physical Address', 'arp.type': 'Type', 'arp.loading': 'Loading neighbors…', 'arp.empty': 'No same-subnet neighbors found.', 'arp.error': 'Unable to read ARP table.', 'arp.note': "Same-subnet entries from this interface's OS ARP cache.",
+    'refresh.now': 'Refresh now', 'theme.toggle': 'Toggle theme', 'lang.toggle': 'Switch language',
+    'reconnect.button': 'Reconnect',
     'type.static': 'Static', 'type.dynamic': 'Dynamic', 'type.unknown': 'Unknown',
+    'about.title': 'About', 'about.text': 'A tiny desktop client for the local zerotier-one service — view your networks and same-subnet neighbors, and join or leave networks.',
+    'quit': 'Quit', 'quit.confirm': 'Close ZeroTier Desktop?',
+    'close.title': 'Close window', 'close.sub': 'Minimize to the taskbar, or exit the app?', 'close.remember': 'Remember my choice', 'close.minimize': 'Minimize', 'close.exit': 'Exit',
   },
   zh: {
-    'app.subtitle': '本地节点',
-    'node.connecting': '连接中',
-    'node.waiting': '等待服务',
-    'node.offline': '离线',
-    'node.online': '在线',
-    'node.unavailable': '服务不可用',
-    'node.reconnecting': '正在重连…',
-    'node.v': 'v',
-    'node.fallback': 'TCP 回退',
-    'reconnect.button': '重新连接',
-    'join.placeholder': '加入网络 — 16 位十六进制',
-    'join.button': '加入',
-    'join.invalid': '网络 ID 必须是 16 位十六进制。',
-    'join.sent': '已发送加入请求：',
-    'join.failed': '加入失败：',
-    'leave.confirm': '离开网络 ',
-    'leave.short': '离开',
-    'leave.done': '已离开 ',
-    'leave.failed': '离开失败：',
-    'networks.title': '网络',
-    'networks.empty': '尚未加入任何网络。在上方输入网络 ID 加入。',
-    'networks.loadError': '无法加载网络。',
-    'networks.loading': '正在加载网络',
+    'networks.title': '网络', 'networks.empty': '尚未加入任何网络。在上方输入网络 ID 加入。', 'networks.loadError': '无法加载网络。',
     'detail.empty': '选择一个网络查看其邻居',
-    'meta.interface': '接口',
-    'meta.type': '类型',
-    'meta.mac': 'MAC',
-    'meta.mtu': 'MTU',
-    'meta.ips': '托管 IP',
+    'meta.id': '网络 ID', 'meta.type': '类型', 'meta.ips': '托管 IP',
+    'stat.neighbors': '邻居', 'stat.iface': '接口', 'stat.mtu': 'MTU',
     'neighbors.title': '邻居 (ARP)',
-    'arp.addr': 'Internet 地址',
-    'arp.phys': '物理地址',
-    'arp.type': '类型',
-    'arp.loading': '正在加载邻居…',
-    'arp.empty': '未找到同子网邻居。',
-    'arp.error': '无法读取 ARP 表。',
-    'arp.note': '来自该接口系统 ARP 缓存的同子网条目。',
-    'footer.note': '本地控制 · 127.0.0.1:9993',
-    'updated.never': '尚未刷新',
-    'updated': '已更新 ',
-    'interval.off': '关闭',
-    'interval.5': '5秒', 'interval.10': '10秒', 'interval.30': '30秒',
-    'interval.menuOff': '手动（关闭）',
-    'interval.menu5': '每 5 秒', 'interval.menu10': '每 10 秒', 'interval.menu30': '每 30 秒',
-    'refresh.now': '立即刷新',
-    'theme.toggle': '切换主题',
-    'lang.toggle': '切换语言',
-    'list.toggle': '收起/展开网络列表',
+    'node.connecting': '连接中', 'node.offline': '离线', 'node.online': '在线', 'node.reconnecting': '正在重连…', 'node.v': 'v', 'node.fallback': 'TCP 回退',
+    'join.placeholder': '加入网络 — 16 位十六进制', 'join.button': '加入', 'join.invalid': '网络 ID 必须是 16 位十六进制。', 'join.sent': '已发送加入请求：', 'join.failed': '加入失败：', 'join.exists': '已加入该网络',
+    'leave.short': '离开', 'leave.confirm': '离开网络 ', 'leave.done': '已离开 ', 'leave.failed': '离开失败：', 'leave.rejoin': '重新连接', 'leave.hint': '你已离开此网络 —— 点击「重新连接」即可重连。',
+    'arp.addr': 'Internet 地址', 'arp.phys': '物理地址', 'arp.type': '类型', 'arp.loading': '正在加载邻居…', 'arp.empty': '未找到同子网邻居。', 'arp.error': '无法读取 ARP 表。', 'arp.note': '来自该接口系统 ARP 缓存的同子网条目。',
+    'refresh.now': '立即刷新', 'theme.toggle': '切换主题', 'lang.toggle': '切换语言',
+    'reconnect.button': '重新连接',
     'type.static': '静态', 'type.dynamic': '动态', 'type.unknown': '未知',
+    'about.title': '关于', 'about.text': '本地 zerotier-one 服务的轻量桌面客户端 —— 查看你的网络和同子网邻居，加入或离开网络。',
+    'quit': '退出', 'quit.confirm': '关闭 ZeroTier Desktop？',
+    'close.title': '关闭窗口', 'close.sub': '最小化到任务栏，还是退出程序？', 'close.remember': '记住我的选择', 'close.minimize': '最小化', 'close.exit': '退出',
   },
 };
 
 function makeMockBridge() {
   const ok = (data) => Promise.resolve({ ok: true, data });
+  const NETS = [
+    { id: '8056c2e21c434f64', name: 'my-first-network', status: 'OK', type: 'PRIVATE', mac: '66:1f:ea:51:d4:70', mtu: 2800, assignedAddresses: ['10.147.20.5/24'] },
+    { id: '8056c2e21cce9e4a', name: 'office', status: 'OK', type: 'PRIVATE', mac: '4a:ce:67:51:d4:70', mtu: 2800, assignedAddresses: ['172.25.50.160/24'] },
+  ];
+  const left = new Set();
   return {
     _mock: true,
     getStatus: () => ok({ address: 'a1b2c3d4e5', online: true, version: '1.16.1', tcpFallbackActive: false }),
-    getNetworks: () => ok([
-      { id: '8056c2e21c434f64', name: 'Demo Network', status: 'OK', type: 'PRIVATE', mac: '66:1f:ea:51:d4:70', mtu: 2800, assignedAddresses: ['10.147.20.5/24'] },
-      { id: '8056c2e21cce9e4a', name: 'Office', status: 'OK', type: 'PRIVATE', mac: '4a:ce:67:51:d4:70', mtu: 2800, assignedAddresses: ['172.25.50.160/24'] },
-    ]),
-    joinNetwork: () => ok({ status: 'REQUESTING_CONFIGURATION' }),
-    leaveNetwork: () => ok({}),
+    getNetworks: () => ok(NETS.filter((n) => !left.has(n.id))),
+    joinNetwork: (id) => { left.delete(id); return ok({ status: 'OK' }); },
+    leaveNetwork: (id) => { left.add(id); return ok({}); },
     getArp: (ip, cidr) => {
       const base = (cidr || '10.147.20.0/24').split('/')[0].split('.').slice(0, 3).join('.');
       const rows = [
         { ip: base + '.1', mac: '66-9f-f3-7d-5e-4a', type: 'dynamic' },
         { ip: base + '.12', mac: '66-96-f4-1f-e8-8b', type: 'dynamic' },
         { ip: base + '.88', mac: '66-ec-35-bf-16-cd', type: 'dynamic' },
-        { ip: base + '.203', mac: '66-70-34-6e-c0-60', type: 'dynamic' },
+        { ip: base + '.203', mac: '66-70-34-6e-c0-60', type: 'static' },
       ];
       return Promise.resolve({ ok: true, rows, interface: ip, index: '0xf' });
     },
@@ -143,136 +76,88 @@ const ZT = _invoke ? {
   leaveNetwork: (id) => _invoke('leave_network', { id }),
   getArp: (ip, cidr) => _invoke('get_arp', { ip, cidr }),
 } : makeMockBridge();
-if (ZT._mock) window.zerotier = ZT; // expose mock for the standalone browser preview / testing
+if (ZT._mock) window.zerotier = ZT;
+
 const gsap = window.gsap || null;
 const SELFTEST = new URLSearchParams(window.location.search).get('selftest') === '1';
 const MO = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const store = (() => { try { return window.localStorage; } catch (e) { return { getItem: () => null, setItem: () => {} }; } })();
 
 let lang = store.getItem('zt.lang') || 'en';
-let theme = store.getItem('zt.theme') || 'dark';
-let interval = parseInt(store.getItem('zt.interval'), 10); if (isNaN(interval)) interval = 0;
-let listCollapsed = store.getItem('zt.listCollapsed') === '1';
-
+let theme = store.getItem('zt.theme') || 'light';
 function t(key) { return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key; }
+function loadLeft() { try { return JSON.parse(store.getItem('zt.leftNets') || '[]'); } catch (e) { return []; } }
+function saveLeft() { store.setItem('zt.leftNets', JSON.stringify(state.left)); }
 
 const el = {
-  topbar: document.getElementById('topbar'),
-  toolbar: document.getElementById('toolbar'),
+  themeBtn: document.getElementById('themeBtn'),
+  langBtn: document.getElementById('langBtn'),
+  aboutBtn: document.getElementById('aboutBtn'),
+  aboutModal: document.getElementById('aboutModal'),
+  aboutClose: document.getElementById('aboutClose'),
+  closeModal: document.getElementById('closeModal'),
+  closeMinimize: document.getElementById('closeMinimize'),
+  closeExit: document.getElementById('closeExit'),
+  closeRemember: document.getElementById('closeRemember'),
+  quitBtn: document.getElementById('quitBtn'),
+  crumbNet: document.getElementById('crumbNet'),
   nodeStatus: document.getElementById('nodeStatus'),
   statusDot: document.getElementById('statusDot'),
   nodeAddress: document.getElementById('nodeAddress'),
   nodeSub: document.getElementById('nodeSub'),
+  refreshNowBtn: document.getElementById('refreshNowBtn'),
+  netTabs: document.getElementById('netTabs'),
   joinForm: document.getElementById('joinForm'),
   networkIdInput: document.getElementById('networkIdInput'),
   joinBtn: document.getElementById('joinBtn'),
-  refreshNowBtn: document.getElementById('refreshNowBtn'),
-  refreshIcon: document.querySelector('#refreshNowBtn .refresh-icon'),
-  intervalBtn: document.getElementById('intervalBtn'),
-  intervalLabel: document.getElementById('intervalLabel'),
-  intervalMenu: document.getElementById('intervalMenu'),
-  langBtn: document.getElementById('langBtn'),
-  themeBtn: document.getElementById('themeBtn'),
-  reconnectBtn: document.getElementById('reconnectBtn'),
-  networkSplit: document.getElementById('networkSplit'),
-  netList: document.getElementById('netList'),
-  netItems: document.getElementById('netItems'),
-  netIndicator: document.getElementById('netIndicator'),
-  listToggleBtn: document.getElementById('listToggleBtn'),
-  networkCount: document.getElementById('networkCount'),
-  netDetail: document.getElementById('netDetail'),
-  footer: document.getElementById('footer'),
-  lastUpdated: document.getElementById('lastUpdated'),
+  detail: document.getElementById('detail'),
   toast: document.getElementById('toast'),
 };
 
-const state = { networks: [], selectedId: null, arpToken: 0, online: false };
-let pollTimer = null;
+const state = { networks: [], selectedId: null, online: false, arpToken: 0, left: loadLeft() };
 let statusTimer = null;
 let firstRefreshDone = false;
 let pulseTween = null;
 
-/* ---------- utils ---------- */
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function runGsap(fn) { if (!gsap || MO) return; try { fn(); } catch (e) { console.error('gsap error:', e); } }
 function shortId(id) { return String(id || '').slice(0, 10); }
+function firstIp(net) { const a = (net.assignedAddresses || [])[0]; return a ? a.split('/')[0] : '—'; }
 
-/* ---------- i18n apply ---------- */
+/* ---------- i18n / theme ---------- */
 function applyLang() {
   document.documentElement.lang = lang;
-  // In-place relabel of every [data-i18n] element (including dynamic detail/ARP
-  // labels) — never rebuilds, so the ARP table is preserved on language switch.
-  document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = t(node.getAttribute('data-i18n')); });
-  document.querySelectorAll('[data-i18n-ph]').forEach((node) => { node.placeholder = t(node.getAttribute('data-i18n-ph')); });
-  document.querySelectorAll('[data-i18n-title]').forEach((node) => { node.title = t(node.getAttribute('data-i18n-title')); });
+  document.querySelectorAll('[data-i18n]').forEach((n) => { n.textContent = t(n.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-ph]').forEach((n) => { n.placeholder = t(n.getAttribute('data-i18n-ph')); });
+  document.querySelectorAll('[data-i18n-title]').forEach((n) => { n.title = t(n.getAttribute('data-i18n-title')); });
   if (el.langBtn) el.langBtn.textContent = lang === 'en' ? '中' : 'EN';
-  updateIntervalLabel();
 }
-
-/* ---------- theme ---------- */
+function toggleLang() {
+  lang = lang === 'en' ? 'zh' : 'en';
+  store.setItem('zt.lang', lang);
+  if (!gsap || MO) { applyLang(); return; }
+  // fade the content, swap text at low opacity, fade back — masks the instant relabel
+  gsap.to('.content', { opacity: 0.35, duration: 0.1, ease: 'power2.in', onComplete: () => {
+    applyLang();
+    gsap.fromTo('.content', { opacity: 0.35 }, { opacity: 1, duration: 0.18, ease: 'power2.out' });
+  } });
+}
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', theme);
   if (!el.themeBtn) return;
-  const sun = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M19.4 4.6l-1.8 1.8M6.4 17.6l-1.8 1.8"/></svg>';
-  const moon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
-  el.themeBtn.innerHTML = theme === 'dark' ? sun : moon; // icon shows the action's target
+  const sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M19.4 4.6l-1.8 1.8M6.4 17.6l-1.8 1.8"/></svg>';
+  const moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  el.themeBtn.innerHTML = theme === 'dark' ? sun : moon;
 }
 
-/* ---------- refresh interval ---------- */
-function intervalShort(v) { return v === 0 ? t('interval.off') : t('interval.' + v); }
-function updateIntervalLabel() { if (el.intervalLabel) el.intervalLabel.textContent = intervalShort(interval); }
-function setPoll() {
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-  // Data-refresh interval (status is always monitored by the heartbeat).
-  if (interval > 0) pollTimer = setInterval(refreshData, interval * 1000);
-}
-function applyInterval(v) {
-  interval = v;
-  store.setItem('zt.interval', String(v));
-  updateIntervalLabel();
-  // mark active option
-  el.intervalMenu.querySelectorAll('button').forEach((b) => {
-    b.classList.toggle('active', parseInt(b.getAttribute('data-int'), 10) === v);
-  });
-  setPoll();
-}
-
-/* ---------- network list collapse + selection indicator ---------- */
-function applyList() {
-  if (!el.networkSplit) return;
-  el.networkSplit.classList.toggle('collapsed', listCollapsed);
-  if (el.listToggleBtn) el.listToggleBtn.classList.toggle('active', listCollapsed);
-}
-function toggleList() {
-  listCollapsed = !listCollapsed;
-  store.setItem('zt.listCollapsed', listCollapsed ? '1' : '0');
-  applyList();
-  setTimeout(moveIndicator, 300); // reposition after the width transition
-}
-function moveIndicator() {
-  const list = el.netList; const ind = el.netIndicator;
-  if (!list || !ind) return;
-  const sel = list.querySelector('.net-item.selected');
-  if (!sel) { if (gsap) gsap.to(ind, { height: 0, duration: 0.2 }); else ind.style.height = '0'; return; }
-  const lr = list.getBoundingClientRect();
-  const sr = sel.getBoundingClientRect();
-  const top = sr.top - lr.top;
-  if (gsap && !MO) gsap.to(ind, { top, height: sr.height, duration: 0.4, ease: 'power3.out' });
-  else { ind.style.top = top + 'px'; ind.style.height = sr.height + 'px'; }
-}
-
-/* ---------- status dot pulse ---------- */
+/* ---------- connection / pulse / toast ---------- */
+function applyConnectionState() {}
 function setPulse(st) {
   if (pulseTween) { pulseTween.kill(); pulseTween = null; }
   gsap && gsap.set(el.statusDot, { scale: 1, opacity: 1 });
   if (st !== 'online') return;
-  runGsap(() => { pulseTween = gsap.to(el.statusDot, { scale: 1.45, opacity: 0.55, duration: 0.9, ease: 'sine.inOut', repeat: -1, yoyo: true, transformOrigin: 'center' }); });
+  runGsap(() => { pulseTween = gsap.to(el.statusDot, { scale: 1.5, opacity: 0.5, duration: 0.9, ease: 'sine.inOut', repeat: -1, yoyo: true, transformOrigin: 'center' }); });
 }
-
-/* ---------- toast ---------- */
 const ICONS = {
   success: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
   error: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>',
@@ -281,22 +166,16 @@ let toastTimer = null;
 function toast(msg, kind) {
   el.toast.innerHTML = '<span class="toast-icon">' + (ICONS[kind] || '') + '</span><span>' + escapeHtml(msg) + '</span>';
   el.toast.className = 'toast' + (kind ? ' ' + kind : '');
-  runGsap(() => gsap.to(el.toast, { autoAlpha: 1, y: 0, duration: 0.35, ease: 'back.out(1.6)' }));
-  if (!gsap || MO) { el.toast.style.opacity = '1'; el.toast.style.visibility = 'visible'; }
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(hideToast, 3200);
+  runGsap(() => gsap.to(el.toast, { autoAlpha: 1, y: 0, duration: 0.3, ease: 'power2.out' }));
+  if (!gsap || MO) { el.toast.style.opacity = '1'; el.toast.style.visibility = 'visible'; el.toast.style.transform = 'translateX(-50%)'; }
+  clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 3000);
 }
 function hideToast() {
-  runGsap(() => gsap.to(el.toast, { autoAlpha: 0, y: 16, duration: 0.3, ease: 'power2.in' }));
+  runGsap(() => gsap.to(el.toast, { autoAlpha: 0, y: 16, duration: 0.25, ease: 'power2.in' }));
   if (!gsap || MO) { el.toast.style.opacity = '0'; el.toast.style.visibility = 'hidden'; }
 }
 
-/* ---------- render: node status ---------- */
-function applyConnectionState() {
-  // Reconnect button shows only when offline; status heartbeat keeps trying to recover.
-  if (el.reconnectBtn) el.reconnectBtn.classList.toggle('show', !state.online);
-}
-
+/* ---------- status ---------- */
 function renderStatus(res) {
   const reachable = !!(res && res.ok);
   const data = reachable ? (res.data || {}) : {};
@@ -311,136 +190,110 @@ function renderStatus(res) {
     parts.push(t('node.online'));
     el.nodeSub.textContent = parts.join(' · ');
   } else {
-    el.nodeAddress.textContent = reachable ? (data.address || '—') : t('node.offline');
+    el.nodeAddress.textContent = reachable ? (data.address || t('node.offline')) : t('node.offline');
     el.nodeSub.textContent = reachable ? t('node.offline') : t('node.reconnecting');
   }
   setPulse(online ? 'online' : 'offline');
   applyConnectionState();
-  return online;
 }
 
-/* ---------- network list ---------- */
+/* ---------- pills / tabs ---------- */
 function statusPill(status) {
   const st = String(status || '').toUpperCase();
   let cls = 'pill-muted', label = status || 'UNKNOWN';
   if (st === 'OK') { cls = 'pill-ok'; label = 'OK'; }
+  else if (st === 'LEFT') { cls = 'pill-denied'; label = t('node.offline').toUpperCase(); }
   else if (st.indexOf('DENIED') >= 0) { cls = 'pill-denied'; label = 'ACCESS DENIED'; }
   else if (st === 'REQUESTING_CONFIGURATION' || st === 'TRYING_CONFIGURATION') { cls = 'pill-warn'; label = 'REQUESTING'; }
   else if (st === 'NOT_FOUND') { cls = 'pill-denied'; label = 'NOT FOUND'; }
   return '<span class="pill ' + cls + '">' + escapeHtml(label) + '</span>';
 }
-function firstIp(net) { const a = (net.assignedAddresses || [])[0]; return a ? a.split('/')[0] : '—'; }
-
-function buildList(nets) {
-  if (nets.length === 0) {
-    el.netItems.innerHTML = '<div class="empty">' + escapeHtml(t('networks.empty')) + '</div>';
-    return;
-  }
-  el.netItems.innerHTML = nets.map((n) => {
-    const selected = n.id === state.selectedId ? ' selected' : '';
-    return (
-      '<button class="net-item' + selected + '" data-id="' + escapeHtml(n.id) + '" type="button">' +
-        '<span class="net-item-main">' +
-          '<span class="net-item-name">' + escapeHtml(n.name || '(unnamed)') + '</span>' +
-          '<span class="net-item-sub">' + escapeHtml(firstIp(n)) + ' · ' + escapeHtml(shortId(n.id)) + '</span>' +
-        '</span>' +
-        '<span class="net-item-status" data-state="' + escapeHtml(String(n.status || '').toLowerCase()) + '"></span>' +
-      '</button>'
-    );
+function buildTabs(nets) {
+  if (nets.length === 0) { el.netTabs.innerHTML = ''; return; }
+  el.netTabs.innerHTML = nets.map((n) => {
+    const sel = n.id === state.selectedId ? ' active' : '';
+    const st = n.left ? 'left' : String(n.status || '').toLowerCase();
+    const xTitle = n.left ? t('leave.short') : t('leave.short');
+    return '<button class="tab' + sel + '" type="button" data-id="' + escapeHtml(n.id) + '" data-state="' + escapeHtml(st) + '">' +
+      '<span class="tdot"></span>' + escapeHtml(n.name || shortId(n.id)) +
+      '<span class="leave-x" data-id="' + escapeHtml(n.id) + '" data-left="' + (n.left ? '1' : '') + '" title="' + escapeHtml(xTitle) + '" role="button" tabindex="-1">×</span>' +
+    '</button>';
   }).join('');
 }
-
 function renderNetworks(res) {
-  if (!res || !res.ok) {
-    el.networkCount.textContent = '0';
-    el.netItems.innerHTML = '<div class="empty">' + escapeHtml((res && res.error) || t('networks.loadError')) + '</div>';
-    showDetailEmpty();
-    return false;
-  }
-  const nets = Array.isArray(res.data) ? res.data : [];
+  let nets = [];
+  if (res && res.ok && Array.isArray(res.data)) nets = res.data.slice();
   state.networks = nets;
-  el.networkCount.textContent = String(nets.length);
+  const liveIds = nets.map((n) => n.id);
+  // history (left) networks not currently joined
+  const left = state.left.filter((l) => liveIds.indexOf(l.id) < 0).map((l) => ({ id: l.id, name: l.name, status: 'LEFT', left: true, assignedAddresses: [], mac: '—', mtu: null, type: '—' }));
+  const all = nets.concat(left);
 
-  if (nets.length === 0) {
-    state.selectedId = null;
-    buildList(nets);
-    showDetailEmpty();
-    return true;
-  }
-  const ids = nets.map((n) => n.id);
+  if (all.length === 0) { state.selectedId = null; buildTabs(all); showDetailEmpty(t('networks.empty')); return true; }
+  const ids = all.map((n) => n.id);
   let changed = false;
-  if (!state.selectedId || ids.indexOf(state.selectedId) < 0) { state.selectedId = nets[0].id; changed = true; }
-  buildList(nets);
-  animateList();
-  moveIndicator();
+  if (!state.selectedId || ids.indexOf(state.selectedId) < 0) { state.selectedId = all[0].id; changed = true; }
+  buildTabs(all);
+  animateTabs();
   if (changed) selectNetwork(state.selectedId);
   return true;
 }
 
-/* ---------- selection ---------- */
+/* ---------- selection / detail ---------- */
 function selectNetwork(id) {
-  const net = state.networks.find((n) => n.id === id);
+  const all = state.networks.concat(state.left.filter((l) => !state.networks.some((n) => n.id === l.id)).map((l) => ({ ...l, left: true, status: 'LEFT' })));
+  const net = all.find((n) => n.id === id);
   if (!net) { showDetailEmpty(); return; }
   state.selectedId = id;
-  el.netItems.querySelectorAll('.net-item').forEach((node) => { node.classList.toggle('selected', node.getAttribute('data-id') === id); });
-  moveIndicator();
-  renderDetail(net);
-  loadArp(net, false); // full load (loading state + animation)
+  el.netTabs.querySelectorAll('.tab').forEach((tb) => { tb.classList.toggle('active', tb.getAttribute('data-id') === id); });
+  if (el.crumbNet) el.crumbNet.textContent = net.name || shortId(net.id);
+  if (net.left) renderLeftDetail(net);
+  else { renderDetail(net); loadArp(net, false); }
 }
-function showDetailEmpty() {
-  el.netDetail.innerHTML =
-    '<div class="detail-empty">' +
-      '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>' +
-      '<span>' + escapeHtml(t('detail.empty')) + '</span>' +
-    '</div>';
+function showDetailEmpty(msg) {
+  el.detail.innerHTML = '<div class="placeholder">' + escapeHtml(msg || t('detail.empty')) + '</div>';
+  if (el.crumbNet) el.crumbNet.textContent = '—';
 }
 
-/* ---------- detail ---------- */
-function metaRow(key, v, id) {
-  return '<div class="detail-row"><span class="k" data-i18n="' + key + '">' + escapeHtml(t(key)) + '</span>' +
-    '<span class="v' + (id ? '" id="' + id : '') + '">' + escapeHtml(v) + '</span></div>';
+const SVG = {
+  neighbors: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.6 7.4l3.2 8.4M16.4 7.4l-3.2 8.4M8 6h8"/></svg>',
+  iface: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+  mtu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+};
+function statCard(labelKey, valHtml, hint, svg, id) {
+  return '<div class="stat"><div class="lbl">' + svg + ' <span data-i18n="' + labelKey + '">' + escapeHtml(t(labelKey)) + '</span></div><div class="val' + (id ? '" id="' + id : '') + '">' + valHtml + '</div><div class="hint">' + (hint || '') + '</div></div>';
 }
 function renderDetail(net) {
   const ips = (net.assignedAddresses && net.assignedAddresses.length) ? net.assignedAddresses.join(', ') : '—';
-  const ipOnly = firstIp(net);
-  el.netDetail.innerHTML =
-    '<div class="detail-scroll">' +
-      '<div class="detail-head">' +
-        '<div>' +
-          '<div class="detail-name">' + escapeHtml(net.name || '(unnamed)') + '</div>' +
-          '<div class="detail-id">' + escapeHtml(net.id || '—') + '</div>' +
-        '</div>' +
-        '<div class="detail-head-right">' +
-          statusPill(net.status) +
-          '<button class="btn btn-danger btn-sm leave-btn" type="button" data-id="' + escapeHtml(net.id) + '" data-i18n="leave.short">' + escapeHtml(t('leave.short')) + '</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="detail-meta">' +
-        metaRow('meta.interface', ipOnly + ' --- …', 'detailIfc') +
-        metaRow('meta.type', net.type || '—') +
-        metaRow('meta.mac', net.mac || '—') +
-        metaRow('meta.mtu', String(net.mtu != null ? net.mtu : '—')) +
-        metaRow('meta.ips', ips) +
-      '</div>' +
-      '<div class="arp-section">' +
-        '<div class="arp-head">' +
-          '<span class="panel-title" data-i18n="neighbors.title">' + escapeHtml(t('neighbors.title')) + '</span>' +
-          '<div class="arp-head-right">' +
-            '<span class="panel-count" id="arpCount">…</span>' +
-            '<button class="btn btn-ghost btn-sm arp-refresh" type="button" data-i18n-title="refresh.now" aria-label="Refresh ARP">' +
-              '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>' +
-            '</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="arp-wrap">' +
-          '<table class="arp-table">' +
-            '<thead><tr><th data-i18n="arp.addr">' + escapeHtml(t('arp.addr')) + '</th><th data-i18n="arp.phys">' + escapeHtml(t('arp.phys')) + '</th><th data-i18n="arp.type">' + escapeHtml(t('arp.type')) + '</th></tr></thead>' +
-            '<tbody id="arpBody"><tr><td colspan="3" class="empty" data-i18n="arp.loading">' + escapeHtml(t('arp.loading')) + '</td></tr></tbody>' +
-          '</table>' +
-        '</div>' +
-        '<div class="arp-note" data-i18n="arp.note">' + escapeHtml(t('arp.note')) + '</div>' +
-      '</div>' +
-    '</div>';
+  el.detail.innerHTML =
+    '<div class="net-head"><div>' +
+      '<h1>' + escapeHtml(net.name || '(unnamed)') + ' ' + statusPill(net.status) + '</h1>' +
+      '<div class="net-id"><span class="meta" data-i18n="meta.id">NETWORK ID</span><code>' + escapeHtml(net.id || '—') + '</code></div>' +
+      '<div class="updated"><span data-i18n="meta.type">Type</span>: ' + escapeHtml(net.type || '—') + ' · <span data-i18n="meta.ips">Managed IPs</span>: <span class="mono">' + escapeHtml(ips) + '</span></div>' +
+    '</div>' +
+    '<button class="btn danger btn-sm leave-btn" type="button" data-id="' + escapeHtml(net.id) + '" data-i18n="leave.short">Leave</button></div>' +
+    '<div class="stats">' +
+      statCard('stat.neighbors', '…', escapeHtml(t('arp.note')), SVG.neighbors, 'statNeighbors') +
+      statCard('stat.iface', escapeHtml(firstIp(net) + ' --- …'), escapeHtml(net.mac || '—'), SVG.iface, 'detailIfc') +
+      statCard('stat.mtu', escapeHtml(String(net.mtu != null ? net.mtu : '—')), escapeHtml(t('meta.type')) + ': ' + escapeHtml(net.type || '—'), SVG.mtu) +
+    '</div>' +
+    '<div class="members">' +
+      '<div class="mhead"><h3>' + SVG.neighbors + ' <span data-i18n="neighbors.title">Neighbors (ARP)</span></h3><span class="count" id="arpCount">…</span></div>' +
+      '<table><thead><tr><th data-i18n="arp.addr">Internet Address</th><th data-i18n="arp.phys">Physical Address</th><th data-i18n="arp.type">Type</th></tr></thead>' +
+      '<tbody id="arpBody"><tr class="empty-row"><td colspan="3" data-i18n="arp.loading">Loading neighbors…</td></tr></tbody></table>' +
+    '</div>' +
+    '<div class="arp-note" data-i18n="arp.note">' + escapeHtml(t('arp.note')) + '</div>';
+  animateDetail();
+}
+function renderLeftDetail(net) {
+  el.detail.innerHTML =
+    '<div class="net-head"><div>' +
+      '<h1>' + escapeHtml(net.name || shortId(net.id)) + ' ' + statusPill('LEFT') + '</h1>' +
+      '<div class="net-id"><span class="meta" data-i18n="meta.id">NETWORK ID</span><code>' + escapeHtml(net.id) + '</code></div>' +
+      '<div class="updated">' + escapeHtml(t('leave.hint')) + '</div>' +
+    '</div>' +
+    '<button class="btn primary btn-sm rejoin-btn" type="button" data-id="' + escapeHtml(net.id) + '">' + escapeHtml(t('leave.rejoin')) + '</button></div>' +
+    '<div class="placeholder">' + escapeHtml(t('leave.hint')) + '</div>';
   animateDetail();
 }
 
@@ -452,58 +305,54 @@ async function loadArp(net, silent) {
   const arpBody = document.getElementById('arpBody');
   if (!arpBody) return;
   if (!silent) {
-    arpBody.innerHTML = '<tr><td colspan="3" class="empty">' + escapeHtml(t('arp.loading')) + '</td></tr>';
+    arpBody.innerHTML = '<tr class="empty-row"><td colspan="3">' + escapeHtml(t('arp.loading')) + '</td></tr>';
     const c = document.getElementById('arpCount'); if (c) c.textContent = '…';
+    const sn = document.getElementById('statNeighbors'); if (sn) sn.textContent = '…';
   }
   const res = await ZT.getArp(ip, cidr);
   if (token !== state.arpToken) return;
   renderArp(res, net, !silent);
 }
-
 function renderArp(res, net, animate) {
   const arpBody = document.getElementById('arpBody');
   const arpCount = document.getElementById('arpCount');
+  const statNeighbors = document.getElementById('statNeighbors');
   const ifc = document.getElementById('detailIfc');
   if (!arpBody) return;
-  if (ifc) {
-    const ip = firstIp(net);
-    const idx = (res && res.ok && res.index) ? (' --- ' + res.index) : '';
-    ifc.textContent = ip + idx;
-  }
+  if (ifc) { const ip = firstIp(net); const idx = (res && res.ok && res.index) ? (' --- ' + res.index) : ''; ifc.textContent = ip + idx; }
   if (!res || !res.ok) {
     if (arpCount) arpCount.textContent = '0';
-    arpBody.innerHTML = '<tr><td colspan="3" class="empty">' + escapeHtml((res && res.error) || t('arp.error')) + '</td></tr>';
+    if (statNeighbors) statNeighbors.textContent = '0';
+    arpBody.innerHTML = '<tr class="empty-row"><td colspan="3">' + escapeHtml((res && res.error) || t('arp.error')) + '</td></tr>';
     return;
   }
   const rows = Array.isArray(res.rows) ? res.rows : [];
   if (arpCount) arpCount.textContent = String(rows.length);
-  if (rows.length === 0) {
-    arpBody.innerHTML = '<tr><td colspan="3" class="empty">' + escapeHtml(t('arp.empty')) + '</td></tr>';
-    return;
-  }
-  arpBody.innerHTML = rows.map((r) =>
-    '<tr>' +
-      '<td class="mono">' + escapeHtml(r.ip) + '</td>' +
-      '<td class="mono">' + escapeHtml(r.mac) + '</td>' +
-      '<td><span class="arp-type ' + escapeHtml(r.type) + '">' + escapeHtml(t('type.' + r.type)) + '</span></td>' +
-    '</tr>'
-  ).join('');
-  if (animate) animateArpRows();
+  if (statNeighbors) statNeighbors.textContent = String(rows.length);
+  if (rows.length === 0) { arpBody.innerHTML = '<tr class="empty-row"><td colspan="3">' + escapeHtml(t('arp.empty')) + '</td></tr>'; return; }
+  arpBody.innerHTML = rows.map((r) => {
+    const online = r.type === 'dynamic';
+    return '<tr>' +
+      '<td><div class="node"><span class="dot ' + (online ? 'online' : 'offline') + '"></span><div class="mono">' + escapeHtml(r.ip) + '</div></div></td>' +
+      '<td class="sub-mono">' + escapeHtml(r.mac) + '</td>' +
+      '<td><span class="badge ' + escapeHtml(r.type) + '">' + escapeHtml(t('type.' + r.type)) + '</span></td>' +
+    '</tr>';
+  }).join('');
+  if (animate) animateRows();
 }
 
 /* ---------- animations ---------- */
 function animateEntrance() {
   runGsap(() => {
     const tl = gsap.timeline();
-    tl.from(el.topbar, { y: -18, opacity: 0, duration: 0.6, ease: 'power3.out' })
-      .from(el.toolbar, { y: 14, opacity: 0, duration: 0.5, ease: 'power3.out' }, '-=0.35')
-      .from(el.networkSplit, { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3')
-      .from(el.footer, { opacity: 0, duration: 0.5 }, '-=0.3');
+    tl.from('.side', { x: -20, opacity: 0, duration: 0.5, ease: 'power3.out' })
+      .from('.topbar', { y: -12, opacity: 0, duration: 0.45, ease: 'power3.out' }, '-=0.3')
+      .from('.content > *', { y: 14, opacity: 0, duration: 0.5, ease: 'power2.out', stagger: 0.08 }, '-=0.25');
   });
 }
-function animateList() { runGsap(() => gsap.from('.net-item', { x: -12, opacity: 0, duration: 0.4, ease: 'power2.out', stagger: 0.06 })); }
-function animateDetail() { runGsap(() => gsap.fromTo('.detail-scroll', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power2.out' })); }
-function animateArpRows() { runGsap(() => gsap.from('#arpBody tr', { opacity: 0, y: 6, duration: 0.3, ease: 'power2.out', stagger: 0.02 })); }
+function animateTabs() { runGsap(() => gsap.from('.tab', { y: 8, opacity: 0, duration: 0.35, ease: 'power2.out', stagger: 0.05 })); }
+function animateDetail() { runGsap(() => gsap.fromTo('#detail', { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power2.out' })); }
+function animateRows() { runGsap(() => gsap.from('#arpBody tr', { opacity: 0, y: 6, duration: 0.3, ease: 'power2.out', stagger: 0.02 })); }
 
 /* ---------- refresh ---------- */
 async function refresh() {
@@ -511,24 +360,19 @@ async function refresh() {
   const [stRes, netRes] = results;
   renderStatus(stRes);
   renderNetworks(netRes);
-  try { el.lastUpdated.textContent = t('updated') + new Date().toLocaleTimeString(lang === 'zh' ? 'zh-CN' : undefined); } catch (e) {}
   if (!firstRefreshDone) { firstRefreshDone = true; reportSelfTestIfNeeded(results); }
   return results;
 }
 function safeRefresh() { refresh().catch((e) => console.error('refresh failed:', e)); }
-
-// Always-on status heartbeat: keeps the dot current and auto-recovers on
-// reconnect, even when the data-refresh interval is set to "off".
 function refreshStatusOnly() {
-  ZT.getStatus().then((res) => {
-    const wasOnline = !!state.online;
-    renderStatus(res);
-    if (state.online && !wasOnline) refreshData(); // recovered -> refresh networks
-  }).catch((e) => console.error('status poll failed:', e));
+  ZT.getStatus().then((res) => { const was = !!state.online; renderStatus(res); if (state.online && !was) recover(); }).catch((e) => console.error('status poll failed:', e));
 }
-function refreshData() {
-  return ZT.getNetworks().then(renderNetworks).catch((e) => console.error('networks poll failed:', e));
+// Full refresh + reload the selected network's ARP — used after reconnect/recovery
+// so the UI reflects the restored state without a manual refresh.
+function recover() {
+  refresh().then(() => { const net = state.networks.find((n) => n.id === state.selectedId); if (net && !net.left) loadArp(net, true); }).catch(() => {});
 }
+function refreshData() { return ZT.getNetworks().then(renderNetworks).catch((e) => console.error('networks poll failed:', e)); }
 
 /* ---------- self-test ---------- */
 async function reportSelfTestIfNeeded(results) {
@@ -537,118 +381,133 @@ async function reportSelfTestIfNeeded(results) {
   const errors = [];
   if (!stRes || !stRes.ok) errors.push('status: ' + ((stRes && stRes.error) || 'failed'));
   if (!netRes || !netRes.ok) errors.push('networks: ' + ((netRes && netRes.error) || 'failed'));
-  let arp = null;
-  const nets = (netRes && netRes.ok && Array.isArray(netRes.data)) ? netRes.data : [];
-  const first = nets[0];
-  if (first && (first.assignedAddresses || [])[0]) {
-    const full = first.assignedAddresses[0];
-    const r = await ZT.getArp(full.split('/')[0], full);
-    arp = r.ok ? { rows: r.rows.length, interface: r.interface, index: r.index } : { error: r.error };
-    if (!r.ok) errors.push('arp: ' + r.error);
-  }
-  try {
-    ZT.reportSelfTest({ rendered: true, mock: !!ZT._mock, lang, theme, interval,
-      online: !!(stRes && stRes.ok && stRes.data && stRes.data.online),
-      address: (stRes && stRes.ok && stRes.data && stRes.data.address) || null,
-      networks: nets.length, selected: state.selectedId, arp, gsap: !!gsap, errors });
-  } catch (e) { console.error('reportSelfTest failed:', e); }
+  try { ZT.reportSelfTest({ rendered: true, mock: !!ZT._mock, lang, theme, online: state.online, networks: (netRes && netRes.ok && Array.isArray(netRes.data)) ? netRes.data.length : 0, selected: state.selectedId, gsap: !!gsap, errors }); }
+  catch (e) { console.error('reportSelfTest failed:', e); }
 }
 
 /* ---------- actions ---------- */
 async function onJoin(evt) {
-  evt.preventDefault();
+  if (evt) evt.preventDefault();
   const id = el.networkIdInput.value.trim();
   if (!/^[0-9a-fA-F]{16}$/.test(id)) { toast(t('join.invalid'), 'error'); return; }
+  if (state.networks.some((n) => n.id === id)) {
+    el.networkIdInput.value = '';
+    toast(t('join.exists'), 'success');
+    selectNetwork(id);
+    return;
+  }
   el.joinBtn.disabled = true;
   const res = await ZT.joinNetwork(id);
   el.joinBtn.disabled = false;
-  if (res && res.ok) { el.networkIdInput.value = ''; toast(t('join.sent') + id, 'success'); safeRefresh(); }
-  else { toast(t('join.failed') + ((res && res.error) || 'unknown'), 'error'); }
+  if (res && res.ok) {
+    el.networkIdInput.value = '';
+    state.left = state.left.filter((l) => l.id !== id); saveLeft();
+    toast(t('join.sent') + id, 'success');
+    waitForNetwork(id, 6); // poll until it shows up, then open it
+  } else { toast(t('join.failed') + ((res && res.error) || 'unknown'), 'error'); }
 }
+// Poll the network list until `id` appears (ZeroTier takes a moment to add it),
+// then select it so the user lands on the new network's view.
+function waitForNetwork(id, tries) {
+  let n = tries;
+  const tick = () => {
+    ZT.getNetworks().then((res) => {
+      renderNetworks(res);
+      const found = res && res.ok && Array.isArray(res.data) && res.data.some((x) => x.id === id);
+      if (found || n-- <= 0) selectNetwork(id);
+      else setTimeout(tick, 900);
+    }).catch(() => { if (n-- > 0) setTimeout(tick, 900); else selectNetwork(id); });
+  };
+  tick();
+}
+function netName(id) { const n = state.networks.find((x) => x.id === id); return n ? n.name : (state.left.find((x) => x.id === id) || {}).name; }
 async function onLeave(id) {
   if (!id) return;
   let confirmed = true;
   try { confirmed = window.confirm(t('leave.confirm') + id + '?'); } catch (e) { confirmed = true; }
   if (!confirmed) return;
   const res = await ZT.leaveNetwork(id);
-  if (res && res.ok) { if (state.selectedId === id) state.selectedId = null; toast(t('leave.done') + id, 'success'); safeRefresh(); }
-  else { toast(t('leave.failed') + ((res && res.error) || 'unknown'), 'error'); }
+  if (res && res.ok) {
+    const name = netName(id);
+    if (!state.left.some((l) => l.id === id)) { state.left.push({ id, name }); saveLeft(); }
+    toast(t('leave.done') + id, 'success'); safeRefresh();
+  } else { toast(t('leave.failed') + ((res && res.error) || 'unknown'), 'error'); }
 }
-function spinRefreshIcon(sel) { runGsap(() => gsap.fromTo(sel, { rotation: 0 }, { rotation: 360, duration: 0.7, ease: 'power2.inOut', transformOrigin: 'center' })); }
+async function onRejoin(id) {
+  if (!id) return;
+  const res = await ZT.joinNetwork(id);
+  if (res && res.ok) { state.left = state.left.filter((l) => l.id !== id); saveLeft(); toast(t('join.sent') + id, 'success'); refresh().then(() => selectNetwork(id)).catch(() => {}); }
+  else { toast(t('join.failed') + ((res && res.error) || 'unknown'), 'error'); }
+}
+function forgetLeft(id) { state.left = state.left.filter((l) => l.id !== id); saveLeft(); if (state.selectedId === id) state.selectedId = null; safeRefresh(); }
+
+/* ---------- about / quit ---------- */
+function openAbout() { el.aboutModal.classList.add('show'); }
+function closeAbout() { el.aboutModal.classList.remove('show'); }
+function quitApp() {
+  let confirmed = true;
+  try { confirmed = window.confirm(t('quit.confirm')); } catch (e) { confirmed = true; }
+  if (!confirmed) return;
+  if (_invoke) { _invoke('quit_app'); }
+  else { try { window.close(); } catch (e) {} }
+}
 
 /* ---------- wiring ---------- */
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
   applyLang();
-  applyInterval(interval);
-  applyList();
   animateEntrance();
 
   el.joinForm.addEventListener('submit', onJoin);
 
-  el.netItems.addEventListener('click', (e) => {
-    const item = e.target.closest('.net-item');
-    if (item) selectNetwork(item.getAttribute('data-id'));
+  el.netTabs.addEventListener('click', (e) => {
+    const x = e.target.closest('.leave-x');
+    if (x) { e.stopPropagation(); if (x.getAttribute('data-left') === '1') forgetLeft(x.getAttribute('data-id')); else onLeave(x.getAttribute('data-id')); return; }
+    const tab = e.target.closest('.tab');
+    if (tab) selectNetwork(tab.getAttribute('data-id'));
   });
-  el.netItems.addEventListener('mouseover', (e) => {
-    const item = e.target.closest('.net-item');
-    if (item && !item.classList.contains('selected')) runGsap(() => gsap.to(item, { x: 3, duration: 0.2, ease: 'power2.out' }));
-  });
-  el.netItems.addEventListener('mouseout', (e) => {
-    const item = e.target.closest('.net-item');
-    if (item) runGsap(() => gsap.to(item, { x: 0, duration: 0.25, ease: 'power3.out' }));
-  });
-
-  el.netDetail.addEventListener('click', (e) => {
-    if (e.target.closest('.arp-refresh')) {
-      const net = state.networks.find((n) => n.id === state.selectedId);
-      if (net) { spinRefreshIcon('.arp-refresh svg'); loadArp(net, true); }
-    }
-    const leaveBtn = e.target.closest('.leave-btn');
-    if (leaveBtn) onLeave(leaveBtn.getAttribute('data-id'));
+  el.detail.addEventListener('click', (e) => {
+    const lb = e.target.closest('.leave-btn'); if (lb) return onLeave(lb.getAttribute('data-id'));
+    const rj = e.target.closest('.rejoin-btn'); if (rj) return onRejoin(rj.getAttribute('data-id'));
   });
 
   el.refreshNowBtn.addEventListener('click', () => {
-    spinRefreshIcon(el.refreshIcon);
-    el.refreshNowBtn.disabled = true;
-    safeRefresh();
-    setTimeout(() => { el.refreshNowBtn.disabled = false; }, 700);
+    runGsap(() => gsap.fromTo(el.refreshNowBtn.querySelector('svg'), { rotation: 0 }, { rotation: 360, duration: 0.7, ease: 'power2.inOut', transformOrigin: 'center' }));
+    refresh().then(() => { const net = state.networks.find((n) => n.id === state.selectedId); if (net && !net.left) loadArp(net, true); }).catch(() => {});
   });
-
-  // interval dropdown
-  el.intervalBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = !el.intervalMenu.hidden;
-    el.intervalMenu.hidden = open;
-    el.intervalBtn.setAttribute('aria-expanded', String(!open));
-  });
-  el.intervalMenu.addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-int]');
-    if (!b) return;
-    applyInterval(parseInt(b.getAttribute('data-int'), 10));
-    el.intervalMenu.hidden = true;
-    el.intervalBtn.setAttribute('aria-expanded', 'false');
-  });
-  document.addEventListener('click', () => { el.intervalMenu.hidden = true; el.intervalBtn.setAttribute('aria-expanded', 'false'); });
-
-  // theme + language toggles
   el.themeBtn.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; store.setItem('zt.theme', theme); applyTheme(); });
-  el.langBtn.addEventListener('click', () => { lang = lang === 'en' ? 'zh' : 'en'; store.setItem('zt.lang', lang); applyLang(); });
+  el.langBtn.addEventListener('click', toggleLang);
 
-  el.listToggleBtn.addEventListener('click', toggleList);
-  window.addEventListener('resize', moveIndicator);
+  el.aboutBtn.addEventListener('click', openAbout);
+  el.aboutClose.addEventListener('click', closeAbout);
+  el.aboutModal.addEventListener('click', (e) => { if (e.target === el.aboutModal) closeAbout(); });
+  el.quitBtn.addEventListener('click', quitApp);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeAbout(); el.closeModal.classList.remove('show'); } });
 
-  // manual reconnect (auto-recovery is also handled by the status heartbeat)
-  el.reconnectBtn.addEventListener('click', () => {
-    spinRefreshIcon(el.refreshIcon);
-    el.reconnectBtn.disabled = true;
-    safeRefresh();
-    setTimeout(() => { el.reconnectBtn.disabled = false; }, 800);
+  // window close (titlebar X) → minimize-to-tray or exit, with a remembered choice
+  const TAPI = window.__TAURI__ && window.__TAURI__.event;
+  if (TAPI && TAPI.listen) {
+    TAPI.listen('close-requested', () => {
+      const pref = store.getItem('zt.closeAction');
+      if (pref === 'minimize') return _invoke('minimize_to_tray');
+      if (pref === 'exit') return _invoke('quit_app');
+      el.closeRemember.checked = false;
+      el.closeModal.classList.add('show');
+    });
+  }
+  el.closeMinimize.addEventListener('click', () => {
+    if (el.closeRemember.checked) store.setItem('zt.closeAction', 'minimize');
+    el.closeModal.classList.remove('show');
+    if (_invoke) _invoke('minimize_to_tray');
   });
+  el.closeExit.addEventListener('click', () => {
+    if (el.closeRemember.checked) store.setItem('zt.closeAction', 'exit');
+    el.closeModal.classList.remove('show');
+    if (_invoke) _invoke('quit_app');
+  });
+  el.closeModal.addEventListener('click', (e) => { if (e.target === el.closeModal) el.closeModal.classList.remove('show'); });
 
   safeRefresh();
-  statusTimer = setInterval(refreshStatusOnly, 5000); // always-on connection monitor
-  setPoll();
+  statusTimer = setInterval(refreshStatusOnly, 5000);
 });
-
-window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); if (statusTimer) clearInterval(statusTimer); });
+window.addEventListener('beforeunload', () => { if (statusTimer) clearInterval(statusTimer); });

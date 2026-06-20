@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,109 +7,87 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
-    <!-- ===== Header / node status ===== -->
-    <header class="glass topbar" id="topbar">
-      <div class="brand">
-        <span class="logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2.5l8.2 4.7v9.6L12 21.5 3.8 16.8V7.2L12 2.5z" />
-            <circle cx="12" cy="12" r="2.4" />
-            <path d="M12 9.6V5.2M14.4 12h4.4M9.6 12H5.2" />
-          </svg>
+<div class="app">
+  <!-- ===== Sidebar ===== -->
+  <aside class="side">
+    <img class="logo" src="assets/app-icon.png" alt="ZeroTier" />
+    <button class="nav-icon" id="aboutBtn" type="button" data-i18n-title="about.title" title="About">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+    </button>
+    <div class="spacer"></div>
+    <button class="nav-icon" id="themeBtn" type="button" data-i18n-title="theme.toggle" title="Toggle theme"></button>
+    <button class="nav-icon" id="langBtn" type="button" data-i18n-title="lang.toggle" title="Switch language">EN</button>
+    <button class="nav-icon quit-btn" id="quitBtn" type="button" data-i18n-title="quit" title="Quit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+    </button>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main">
+    <div class="topbar">
+      <div class="crumb"><span data-i18n="networks.title">Networks</span><span>›</span><b id="crumbNet">—</b></div>
+      <div class="right">
+        <span class="node-pill" id="nodeStatus" data-state="loading">
+          <span class="dot" id="statusDot"></span>
+          <span class="addr" id="nodeAddress" data-i18n="node.connecting">connecting</span>
+          <span class="sub" id="nodeSub"></span>
         </span>
-        <div class="brand-text">
-          <span class="brand-title">ZeroTier</span>
-          <span class="brand-sub" data-i18n="app.subtitle">Local Node</span>
-        </div>
-      </div>
-
-      <div class="topbar-right">
-        <div class="node-status" id="nodeStatus" data-state="loading">
-          <span class="status-dot" id="statusDot" aria-hidden="true"></span>
-          <div class="node-meta">
-            <span class="node-address" id="nodeAddress" data-i18n="node.connecting">connecting</span>
-            <span class="node-sub" id="nodeSub" data-i18n="node.waiting">waiting for service</span>
-          </div>
-        </div>
-        <div class="topbar-actions">
-          <button class="btn btn-primary btn-sm reconnect-btn" id="reconnectBtn" type="button" data-i18n="reconnect.button" hidden>Reconnect</button>
-          <button class="icon-btn" id="langBtn" type="button" data-i18n-title="lang.toggle" aria-label="Switch language">EN</button>
-          <button class="icon-btn" id="themeBtn" type="button" data-i18n-title="theme.toggle" aria-label="Toggle theme"></button>
-        </div>
-      </div>
-    </header>
-
-    <!-- ===== Toolbar ===== -->
-    <section class="glass toolbar" id="toolbar">
-      <button class="icon-btn" id="listToggleBtn" type="button" data-i18n-title="list.toggle" aria-label="Toggle network list">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
-      </button>
-      <form class="join-form" id="joinForm" autocomplete="off">
-        <span class="field-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-        </span>
-        <input id="networkIdInput" class="join-input" type="text"
-               placeholder="Join a network — 16 hex chars" spellcheck="false" maxlength="16"
-               data-i18n-ph="join.placeholder" aria-label="Network ID to join" />
-        <button class="btn btn-primary" type="submit" id="joinBtn">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-          <span data-i18n="join.button">Join</span>
+        <button class="nav-icon nav-mini" id="refreshNowBtn" data-i18n-title="refresh.now" title="Refresh now">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </button>
-      </form>
+      </div>
+    </div>
 
-      <div class="refresh-control">
-        <button class="btn btn-ghost btn-icon" id="refreshNowBtn" type="button" data-i18n-title="refresh.now" aria-label="Refresh now">
-          <svg class="refresh-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
-        </button>
-        <div class="interval-wrap">
-          <button class="btn btn-ghost btn-interval" id="intervalBtn" type="button" aria-haspopup="true" aria-expanded="false">
-            <span id="intervalLabel">10s</span>
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+    <div class="content">
+      <div class="switcher">
+        <div class="tabs" id="netTabs"></div>
+        <form class="join" id="joinForm" autocomplete="off">
+          <input id="networkIdInput" placeholder="Join a network — 16 hex chars" spellcheck="false" maxlength="16" data-i18n-ph="join.placeholder" />
+          <button class="btn primary btn-sm" type="submit" id="joinBtn">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-i18n="join.button">Join</span>
           </button>
-          <div class="interval-menu" id="intervalMenu" hidden>
-            <button type="button" data-int="0" data-i18n="interval.menuOff">Manual (off)</button>
-            <button type="button" data-int="5" data-i18n="interval.menu5">Every 5s</button>
-            <button type="button" data-int="10" data-i18n="interval.menu10">Every 10s</button>
-            <button type="button" data-int="30" data-i18n="interval.menu30">Every 30s</button>
-          </div>
-        </div>
+        </form>
       </div>
-    </section>
 
-    <!-- ===== Master-detail: network list + selected network detail ===== -->
-    <section class="glass split" id="networkSplit">
-      <aside class="net-list" id="netList">
-        <span class="net-indicator" id="netIndicator" aria-hidden="true"></span>
-        <div class="net-list-head">
-          <span class="panel-title">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="12" cy="18" r="2.2" /><path d="M7.6 7.4l3.2 8.4M16.4 7.4l-3.2 8.4M8 6h8" /></svg>
-            <span data-i18n="networks.title">Networks</span>
-          </span>
-          <span class="panel-count" id="networkCount">0</span>
-        </div>
-        <div class="net-items" id="netItems">
-          <div class="empty" data-i18n="networks.loading">Loading networks</div>
-        </div>
-      </aside>
-
-      <div class="net-detail" id="netDetail">
-        <div class="detail-empty">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></svg>
-          <span data-i18n="detail.empty">Select a network to view its neighbors</span>
-        </div>
+      <div id="detail">
+        <div class="placeholder" data-i18n="detail.empty">Select a network to view its neighbors</div>
       </div>
-    </section>
+    </div>
+  </main>
+</div>
 
-    <footer class="footer" id="footer">
-      <span id="lastUpdated" data-i18n="updated.never">not refreshed yet</span>
-      <span class="footer-note" data-i18n="footer.note">local control · 127.0.0.1:9993</span>
-    </footer>
+<!-- About dialog -->
+<div class="modal" id="aboutModal">
+  <div class="modal-box">
+    <img class="modal-icon" src="assets/app-icon.png" alt="" />
+    <h3>ZeroTier Desktop</h3>
+    <div class="modal-sub">v1.0.0 · unofficial</div>
+    <p class="modal-text" data-i18n="about.text">A tiny desktop client for the local zerotier-one service — view your networks and same-subnet neighbors, and join/leave networks.</p>
+    <div class="modal-note">Not affiliated with ZeroTier, Inc.</div>
+    <button class="btn primary btn-sm" id="aboutClose" type="button">Close</button>
   </div>
+</div>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="vendor/gsap.min.js"></script>
-  <script src="app.js"></script>
+<!-- Close-choice dialog (window X button) -->
+<div class="modal" id="closeModal">
+  <div class="modal-box">
+    <h3 data-i18n="close.title">Close window</h3>
+    <div class="modal-sub" data-i18n="close.sub">Minimize to the taskbar, or exit the app?</div>
+    <label class="remember"><input type="checkbox" id="closeRemember" /><span data-i18n="close.remember">Remember my choice</span></label>
+    <div class="close-actions">
+      <button class="btn" id="closeMinimize" type="button">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span data-i18n="close.minimize">Minimize</span>
+      </button>
+      <button class="btn danger" id="closeExit" type="button" data-i18n="close.exit">Exit</button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

@@ -12,14 +12,13 @@ A tiny, polished desktop client for the local [`zerotier-one`](https://www.zerot
 
 ## ✨ Features
 
-- **Node status** — address, online state, version, with a live pulsing indicator and **auto-reconnect** (a status heartbeat turns the dot red on disconnect and recovers green automatically; a manual **Reconnect** button is offered while offline).
-- **Networks** — collapsible list; click one to open its detail. A sliding amber indicator animates between selections.
-- **Per-network neighbors (ARP)** — for the selected network's interface, lists the same-subnet peers (Internet address · physical address · type) read live from the OS ARP cache. Broadcast / network / multicast entries are filtered out.
-- **Join / leave** networks by 16-hex network ID.
-- **Light / dark theme** toggle (solid colors, remembered).
-- **English / 中文** language switch — in-place relabel, never refetches (remembered).
-- **Custom refresh cadence** — manual (default), or auto every 5 / 10 / 30 s.
-- **GSAP** animations, **SVG icons only** (no emoji), responsive layout.
+- **Node status** — address, online state, version, with a live pulsing indicator and **auto-reconnect** (a background heartbeat turns the dot red on disconnect and restores green + refreshes the data automatically when the service is back — no manual action needed).
+- **Networks** — switch between joined networks via tabs. **Leaving a network keeps it in the list** (shown red / offline) with a one-click **Reconnect**.
+- **Per-network neighbors (ARP)** — for the selected network's interface, lists the same-subnet peers (Internet address · physical address · type) live from the OS ARP cache, each with a **green / red online-offline dot**. Broadcast / network / multicast entries are filtered out.
+- **Join** by 16-hex network ID — **duplicate-aware** (re-joining an existing network just opens it); after joining a new one it **polls until the network appears, then auto-opens** its view.
+- **System tray** — a ZeroTier tray icon; **left-click** or the right-click menu (**Show** / **Quit**) summons the window. **Single-instance** — launching the exe again just brings the running app to the front.
+- **Close behavior** — the window's ✕ asks **Minimize-to-tray vs Exit** with a *remember my choice* option; the sidebar's red **Quit** button exits immediately (after a confirm).
+- **Light / dark theme** (solid colors), **English / 中文** (in-place relabel, never refetches), GSAP animations, **SVG icons only** (no emoji), responsive layout.
 
 ![Light theme](docs/screenshot-light.png)
 
@@ -29,8 +28,8 @@ A tiny, polished desktop client for the local [`zerotier-one`](https://www.zerot
 
 Grab the latest installer or portable build from the [**Releases**](../../releases) page.
 
-- **Installer** — `ZeroTier-Desktop_1.0.0_x64-setup.exe` (~2 MB). Installs to *Program Files*; bootstraps the WebView2 runtime if missing.
-- **Portable** — `ZeroTier-Desktop-1.0.0-portable.zip`. Unzip and run `ZeroTier Desktop.exe` (keep `WebView2Loader.dll` next to it). Requires the [WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (preinstalled on Windows 11).
+- **Installer** — `ZeroTier-Desktop_1.1.0_x64-setup.exe` (~2 MB). Installs to *Program Files*; bootstraps the WebView2 runtime if missing.
+- **Portable** — `ZeroTier-Desktop-1.1.0-portable.zip`. Unzip and run `ZeroTier Desktop.exe` (keep `WebView2Loader.dll` next to it). Requires the [WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (preinstalled on Windows 11).
 
 ---
 
@@ -92,9 +91,9 @@ src-tauri/
   Cargo.toml         deps: tauri, ureq, encoding_rs, serde_json (release profile = size-optimized)
   tauri.conf.json    window, CSP, bundle config
   icons/             generated app icons
-frontend/            the UI (HTML/CSS/JS + bundled GSAP + Lexend), embedded into the binary
+frontend/            the UI (HTML/CSS/JS + bundled GSAP), embedded into the binary
   index.html  styles.css  app.js
-  vendor/gsap.min.js   fonts/lexend.*
+  vendor/gsap.min.js
 ```
 
 ---
@@ -105,7 +104,6 @@ Project code: **MIT**. Bundles:
 
 - [**Tauri 2**](https://tauri.app/) — MIT/Apache-2.0
 - [**GSAP**](https://gsap.com/) — GreenSock "No Charge" license (free for this free client; not OSI-approved)
-- [**Lexend**](https://fonts.google.com/specimen/Lexend) — SIL Open Font License 1.1
 - Uses the OS **WebView2** runtime (Microsoft)
 - **ZeroTier®** is a trademark of ZeroTier, Inc. This project is independent and not affiliated.
 

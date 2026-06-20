@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ZeroTier Desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.zerotier.desktop",
   "build": {
     "frontendDist": "../frontend"
@@ -10,13 +10,15 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "ZeroTier Desktop",
         "width": 1040,
         "height": 720,
         "minWidth": 760,
         "minHeight": 520,
         "resizable": true,
-        "center": true
+        "center": true,
+        "visible": true
       }
     ],
     "security": {
