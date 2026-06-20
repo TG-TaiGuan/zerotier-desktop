@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ZeroTier Desktop",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "identifier": "com.zerotier.desktop",
   "build": {
     "frontendDist": "../frontend"

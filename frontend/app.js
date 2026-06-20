@@ -21,6 +21,8 @@ const STRINGS = {
     'about.title': 'About', 'about.text': 'A tiny desktop client for the local zerotier-one service — view your networks and same-subnet neighbors, and join or leave networks.',
     'quit': 'Quit', 'quit.confirm': 'Close ZeroTier Desktop?',
     'close.title': 'Close window', 'close.sub': 'Minimize to the taskbar, or exit the app?', 'close.remember': 'Remember my choice', 'close.minimize': 'Minimize', 'close.exit': 'Exit',
+    'settings.title': 'Settings', 'common.cancel': 'Cancel', 'common.done': 'Done', 'settings.closeBehavior': 'Default behavior when closing the window', 'settings.ask': 'Ask every time',
+    'allow.managed': 'Allow Managed Addresses', 'allow.global': 'Allow Global IPs', 'allow.default': 'Allow Default Route', 'allow.dns': 'Allow DNS', 'allow.fail': 'Failed to update setting.',
   },
   zh: {
     'networks.title': '网络', 'networks.empty': '尚未加入任何网络。在上方输入网络 ID 加入。', 'networks.loadError': '无法加载网络。',
@@ -38,14 +40,16 @@ const STRINGS = {
     'about.title': '关于', 'about.text': '本地 zerotier-one 服务的轻量桌面客户端 —— 查看你的网络和同子网邻居，加入或离开网络。',
     'quit': '退出', 'quit.confirm': '关闭 ZeroTier Desktop？',
     'close.title': '关闭窗口', 'close.sub': '最小化到任务栏，还是退出程序？', 'close.remember': '记住我的选择', 'close.minimize': '最小化', 'close.exit': '退出',
+    'settings.title': '设置', 'common.cancel': '取消', 'common.done': '完成', 'settings.closeBehavior': '关闭窗口时的默认行为', 'settings.ask': '每次询问',
+    'allow.managed': '允许托管地址', 'allow.global': '允许全局 IP', 'allow.default': '允许默认路由', 'allow.dns': '允许 DNS', 'allow.fail': '更新设置失败。',
   },
 };
 
 function makeMockBridge() {
   const ok = (data) => Promise.resolve({ ok: true, data });
   const NETS = [
-    { id: '8056c2e21c434f64', name: 'my-first-network', status: 'OK', type: 'PRIVATE', mac: '66:1f:ea:51:d4:70', mtu: 2800, assignedAddresses: ['10.147.20.5/24'] },
-    { id: '8056c2e21cce9e4a', name: 'office', status: 'OK', type: 'PRIVATE', mac: '4a:ce:67:51:d4:70', mtu: 2800, assignedAddresses: ['172.25.50.160/24'] },
+    { id: '8056c2e21c434f64', name: 'my-first-network', status: 'OK', type: 'PRIVATE', mac: '66:1f:ea:51:d4:70', mtu: 2800, assignedAddresses: ['10.147.20.5/24'], allowManaged: true, allowGlobal: false, allowDefault: false, allowDNS: true },
+    { id: '8056c2e21cce9e4a', name: 'office', status: 'OK', type: 'PRIVATE', mac: '4a:ce:67:51:d4:70', mtu: 2800, assignedAddresses: ['172.25.50.160/24'], allowManaged: true, allowGlobal: true, allowDefault: false, allowDNS: true },
   ];
   const left = new Set();
   return {
@@ -54,6 +58,8 @@ function makeMockBridge() {
     getNetworks: () => ok(NETS.filter((n) => !left.has(n.id))),
     joinNetwork: (id) => { left.delete(id); return ok({ status: 'OK' }); },
     leaveNetwork: (id) => { left.add(id); return ok({}); },
+    setNetFlag: (id, key, value) => { const n = NETS.find((x) => x.id === id); if (n) n[key] = value; return ok({}); },
+    getVersion: () => Promise.resolve('1.1.0'),
     getArp: (ip, cidr) => {
       const base = (cidr || '10.147.20.0/24').split('/')[0].split('.').slice(0, 3).join('.');
       const rows = [
@@ -74,9 +80,15 @@ const ZT = _invoke ? {
   getNetworks: () => _invoke('get_networks'),
   joinNetwork: (id) => _invoke('join_network', { id }),
   leaveNetwork: (id) => _invoke('leave_network', { id }),
+  setNetFlag: (id, key, value) => _invoke('set_net_flag', { id, key, value }),
+  getVersion: () => _invoke('get_app_version'),
   getArp: (ip, cidr) => _invoke('get_arp', { ip, cidr }),
 } : makeMockBridge();
 if (ZT._mock) window.zerotier = ZT;
+
+// Best-effort log to the backend file (logs/latest.log). No-op in the browser mock
+// preview. Tagged [ui] so it interleaves with the backend [zt]/[arp] lines.
+function dlog(msg) { if (_invoke) { try { _invoke('log_frontend', { msg: String(msg) }); } catch (e) {} } }
 
 const gsap = window.gsap || null;
 const SELFTEST = new URLSearchParams(window.location.search).get('selftest') === '1';
@@ -100,6 +112,14 @@ const el = {
   closeExit: document.getElementById('closeExit'),
   closeRemember: document.getElementById('closeRemember'),
   quitBtn: document.getElementById('quitBtn'),
+  settingsBtn: document.getElementById('settingsBtn'),
+  settingsModal: document.getElementById('settingsModal'),
+  settingsClose: document.getElementById('settingsClose'),
+  settingsOptions: document.getElementById('settingsOptions'),
+  aboutVersion: document.getElementById('aboutVersion'),
+  quitModal: document.getElementById('quitModal'),
+  quitConfirm: document.getElementById('quitConfirm'),
+  quitCancel: document.getElementById('quitCancel'),
   crumbNet: document.getElementById('crumbNet'),
   nodeStatus: document.getElementById('nodeStatus'),
   statusDot: document.getElementById('statusDot'),
@@ -115,7 +135,6 @@ const el = {
 };
 
 const state = { networks: [], selectedId: null, online: false, arpToken: 0, left: loadLeft() };
-let statusTimer = null;
 let firstRefreshDone = false;
 let pulseTween = null;
 
@@ -260,11 +279,25 @@ const SVG = {
   iface: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
   mtu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
 };
+// The four per-network "Allow" toggles from ZeroTier Central (top-level booleans
+// on the /network/<id> object). Toggled via set_net_flag -> POST /network/<id>.
+const ALLOWS = [
+  { key: 'allowManaged', i18n: 'allow.managed', icon: '<svg class="al-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><line x1="7" y1="7" x2="7.01" y2="7"/><line x1="7" y1="17" x2="7.01" y2="17"/></svg>' },
+  { key: 'allowGlobal', i18n: 'allow.global', icon: '<svg class="al-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>' },
+  { key: 'allowDefault', i18n: 'allow.default', icon: '<svg class="al-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2"/><path d="M8 18h7a4 4 0 0 0 0-8H9"/><path d="M15 7l3 3-3 3"/></svg>' },
+  { key: 'allowDNS', i18n: 'allow.dns', icon: '<svg class="al-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="7" y1="14" x2="14" y2="14"/></svg>' },
+];
 function statCard(labelKey, valHtml, hint, svg, id) {
   return '<div class="stat"><div class="lbl">' + svg + ' <span data-i18n="' + labelKey + '">' + escapeHtml(t(labelKey)) + '</span></div><div class="val' + (id ? '" id="' + id : '') + '">' + valHtml + '</div><div class="hint">' + (hint || '') + '</div></div>';
 }
 function renderDetail(net) {
   const ips = (net.assignedAddresses && net.assignedAddresses.length) ? net.assignedAddresses.join(', ') : '—';
+  const allowsHtml = '<div class="allows">' + ALLOWS.map((a) => {
+    const on = !!(net[a.key]);
+    return '<button class="allow-card' + (on ? ' on' : '') + '" type="button" data-allow="' + a.key + '" data-id="' + escapeHtml(net.id || '') + '">' +
+      a.icon + '<span class="al-label" data-i18n="' + a.i18n + '">' + escapeHtml(t(a.i18n)) + '</span>' +
+      '<svg class="al-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>';
+  }).join('') + '</div>';
   el.detail.innerHTML =
     '<div class="net-head"><div>' +
       '<h1>' + escapeHtml(net.name || '(unnamed)') + ' ' + statusPill(net.status) + '</h1>' +
@@ -277,6 +310,7 @@ function renderDetail(net) {
       statCard('stat.iface', escapeHtml(firstIp(net) + ' --- …'), escapeHtml(net.mac || '—'), SVG.iface, 'detailIfc') +
       statCard('stat.mtu', escapeHtml(String(net.mtu != null ? net.mtu : '—')), escapeHtml(t('meta.type')) + ': ' + escapeHtml(net.type || '—'), SVG.mtu) +
     '</div>' +
+    allowsHtml +
     '<div class="members">' +
       '<div class="mhead"><h3>' + SVG.neighbors + ' <span data-i18n="neighbors.title">Neighbors (ARP)</span></h3><span class="count" id="arpCount">…</span></div>' +
       '<table><thead><tr><th data-i18n="arp.addr">Internet Address</th><th data-i18n="arp.phys">Physical Address</th><th data-i18n="arp.type">Type</th></tr></thead>' +
@@ -365,7 +399,7 @@ async function refresh() {
 }
 function safeRefresh() { refresh().catch((e) => console.error('refresh failed:', e)); }
 function refreshStatusOnly() {
-  ZT.getStatus().then((res) => { const was = !!state.online; renderStatus(res); if (state.online && !was) recover(); }).catch((e) => console.error('status poll failed:', e));
+  ZT.getStatus().then((res) => { const was = !!state.online; renderStatus(res); if (state.online !== was) dlog('node ' + (state.online ? 'ONLINE' : 'OFFLINE')); if (state.online && !was) recover(); }).catch((e) => console.error('status poll failed:', e));
 }
 // Full refresh + reload the selected network's ARP — used after reconnect/recovery
 // so the UI reflects the restored state without a manual refresh.
@@ -392,31 +426,37 @@ async function onJoin(evt) {
   if (!/^[0-9a-fA-F]{16}$/.test(id)) { toast(t('join.invalid'), 'error'); return; }
   if (state.networks.some((n) => n.id === id)) {
     el.networkIdInput.value = '';
+    dlog('join ' + id + ' - already joined, switching to it');
     toast(t('join.exists'), 'success');
     selectNetwork(id);
     return;
   }
+  dlog('join ' + id + ' - sending POST...');
   el.joinBtn.disabled = true;
   const res = await ZT.joinNetwork(id);
   el.joinBtn.disabled = false;
   if (res && res.ok) {
+    dlog('join ' + id + ' - POST ok, polling until it appears');
     el.networkIdInput.value = '';
     state.left = state.left.filter((l) => l.id !== id); saveLeft();
     toast(t('join.sent') + id, 'success');
     waitForNetwork(id, 6); // poll until it shows up, then open it
-  } else { toast(t('join.failed') + ((res && res.error) || 'unknown'), 'error'); }
+  } else { dlog('join ' + id + ' - FAILED: ' + ((res && res.error) || 'unknown')); toast(t('join.failed') + ((res && res.error) || 'unknown'), 'error'); }
 }
-// Poll the network list until `id` appears (ZeroTier takes a moment to add it),
-// then select it so the user lands on the new network's view.
+// Poll the network list until `id` is not just present but READY — it has a
+// managed IP or reports OK. Selecting too early (right after the join POST)
+// renders an unnamed network with no IPs until you switch away and back.
 function waitForNetwork(id, tries) {
   let n = tries;
+  const ready = (net) => !!(net && ((net.assignedAddresses && net.assignedAddresses.length) || String(net.status || '').toUpperCase() === 'OK'));
   const tick = () => {
     ZT.getNetworks().then((res) => {
       renderNetworks(res);
-      const found = res && res.ok && Array.isArray(res.data) && res.data.some((x) => x.id === id);
-      if (found || n-- <= 0) selectNetwork(id);
+      const net = res && res.ok && Array.isArray(res.data) && res.data.find((x) => x.id === id);
+      if (net && ready(net)) { dlog('waitForNetwork ' + id + ' - ready, selecting'); selectNetwork(id); }
+      else if (n-- <= 0) { dlog('waitForNetwork ' + id + ' - timed out, selecting anyway'); selectNetwork(id); }
       else setTimeout(tick, 900);
-    }).catch(() => { if (n-- > 0) setTimeout(tick, 900); else selectNetwork(id); });
+    }).catch((e) => { dlog('waitForNetwork ' + id + ' - poll error: ' + e); if (n-- > 0) setTimeout(tick, 900); else selectNetwork(id); });
   };
   tick();
 }
@@ -426,31 +466,78 @@ async function onLeave(id) {
   let confirmed = true;
   try { confirmed = window.confirm(t('leave.confirm') + id + '?'); } catch (e) { confirmed = true; }
   if (!confirmed) return;
+  dlog('leave ' + id + ' - sending DELETE...');
   const res = await ZT.leaveNetwork(id);
   if (res && res.ok) {
+    dlog('leave ' + id + ' - ok, cached to history');
     const name = netName(id);
     if (!state.left.some((l) => l.id === id)) { state.left.push({ id, name }); saveLeft(); }
     toast(t('leave.done') + id, 'success'); safeRefresh();
-  } else { toast(t('leave.failed') + ((res && res.error) || 'unknown'), 'error'); }
+  } else { dlog('leave ' + id + ' - FAILED: ' + ((res && res.error) || 'unknown')); toast(t('leave.failed') + ((res && res.error) || 'unknown'), 'error'); }
 }
 async function onRejoin(id) {
   if (!id) return;
+  dlog('rejoin ' + id + ' - sending POST...');
   const res = await ZT.joinNetwork(id);
-  if (res && res.ok) { state.left = state.left.filter((l) => l.id !== id); saveLeft(); toast(t('join.sent') + id, 'success'); refresh().then(() => selectNetwork(id)).catch(() => {}); }
-  else { toast(t('join.failed') + ((res && res.error) || 'unknown'), 'error'); }
+  if (res && res.ok) { dlog('rejoin ' + id + ' - ok'); state.left = state.left.filter((l) => l.id !== id); saveLeft(); toast(t('join.sent') + id, 'success'); waitForNetwork(id, 6); }
+  else { dlog('rejoin ' + id + ' - FAILED: ' + ((res && res.error) || 'unknown')); toast(t('join.failed') + ((res && res.error) || 'unknown'), 'error'); }
 }
 function forgetLeft(id) { state.left = state.left.filter((l) => l.id !== id); saveLeft(); if (state.selectedId === id) state.selectedId = null; safeRefresh(); }
 
-/* ---------- about / quit ---------- */
+// Toggle one of the four Allow flags. Optimistic flip + pop animation; reverts on failure.
+function toggleAllow(id, key, btn) {
+  const net = state.networks.find((n) => n.id === id);
+  const cur = !!(net && net[key]);
+  const next = !cur;
+  dlog('allow ' + key + ' -> ' + next + ' (net ' + id + ')');
+  btn.classList.toggle('on', next);
+  runGsap(() => gsap.fromTo(btn, { scale: 0.94 }, { scale: 1, duration: 0.28, ease: 'back.out(2.2)' }));
+  ZT.setNetFlag(id, key, next).then((res) => {
+    if (res && res.ok) {
+      if (net) net[key] = next;
+      // ZeroTier commits the change on its side; re-fetch shortly after so the cards
+      // reflect what the service actually holds (syncs without a manual refresh).
+      setTimeout(syncAllowCards, 250);
+    } else {
+      btn.classList.toggle('on', cur);
+      toast(t('allow.fail'), 'error');
+    }
+  });
+}
+// Re-fetch networks and refresh the allow cards' on/off state in place (no full re-render).
+function syncAllowCards() {
+  ZT.getNetworks().then((res) => {
+    renderNetworks(res);
+    const net = state.networks.find((n) => n.id === state.selectedId);
+    if (!net) return;
+    document.querySelectorAll('.allow-card').forEach((card) => { card.classList.toggle('on', !!net[card.getAttribute('data-allow')]); });
+  }).catch(() => {});
+}
+
+/* ---------- about / quit / settings ---------- */
 function openAbout() { el.aboutModal.classList.add('show'); }
 function closeAbout() { el.aboutModal.classList.remove('show'); }
-function quitApp() {
-  let confirmed = true;
-  try { confirmed = window.confirm(t('quit.confirm')); } catch (e) { confirmed = true; }
-  if (!confirmed) return;
+// Sync the About version from the backend (Cargo.toml version), mock fallback "1.1.0".
+function syncAboutVersion() {
+  if (!el.aboutVersion) return;
+  ZT.getVersion().then((v) => { if (v) el.aboutVersion.textContent = 'v' + v + ' · unofficial'; }).catch(() => {});
+}
+// Sidebar Quit opens a styled confirm instead of the raw browser confirm().
+function openQuit() { el.quitModal.classList.add('show'); }
+function closeQuit() { el.quitModal.classList.remove('show'); }
+function doQuit() {
+  closeQuit();
+  dlog('quit confirmed');
   if (_invoke) { _invoke('quit_app'); }
   else { try { window.close(); } catch (e) {} }
 }
+// Settings: the remembered close-window behavior (minimize / exit / ask).
+function openSettings() {
+  const pref = store.getItem('zt.closeAction') || 'ask';
+  el.settingsOptions.querySelectorAll('input[name="closeAction"]').forEach((r) => { r.checked = (r.value === pref); });
+  el.settingsModal.classList.add('show');
+}
+function closeSettings() { el.settingsModal.classList.remove('show'); }
 
 /* ---------- wiring ---------- */
 document.addEventListener('DOMContentLoaded', () => {
@@ -467,13 +554,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tab) selectNetwork(tab.getAttribute('data-id'));
   });
   el.detail.addEventListener('click', (e) => {
+    const ac = e.target.closest('.allow-card'); if (ac) return toggleAllow(ac.getAttribute('data-id'), ac.getAttribute('data-allow'), ac);
     const lb = e.target.closest('.leave-btn'); if (lb) return onLeave(lb.getAttribute('data-id'));
     const rj = e.target.closest('.rejoin-btn'); if (rj) return onRejoin(rj.getAttribute('data-id'));
   });
 
   el.refreshNowBtn.addEventListener('click', () => {
     runGsap(() => gsap.fromTo(el.refreshNowBtn.querySelector('svg'), { rotation: 0 }, { rotation: 360, duration: 0.7, ease: 'power2.inOut', transformOrigin: 'center' }));
-    refresh().then(() => { const net = state.networks.find((n) => n.id === state.selectedId); if (net && !net.left) loadArp(net, true); }).catch(() => {});
+    // Re-render the selected network's detail (not just ARP) so a name/IPs that
+    // arrived late — e.g. right after a join/reconnect — actually show without
+    // having to switch networks away and back.
+    refresh().then(() => selectNetwork(state.selectedId)).catch(() => {});
   });
   el.themeBtn.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; store.setItem('zt.theme', theme); applyTheme(); });
   el.langBtn.addEventListener('click', toggleLang);
@@ -481,8 +572,20 @@ document.addEventListener('DOMContentLoaded', () => {
   el.aboutBtn.addEventListener('click', openAbout);
   el.aboutClose.addEventListener('click', closeAbout);
   el.aboutModal.addEventListener('click', (e) => { if (e.target === el.aboutModal) closeAbout(); });
-  el.quitBtn.addEventListener('click', quitApp);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeAbout(); el.closeModal.classList.remove('show'); } });
+  el.quitBtn.addEventListener('click', openQuit);
+  el.settingsBtn.addEventListener('click', openSettings);
+  el.settingsClose.addEventListener('click', closeSettings);
+  el.settingsModal.addEventListener('click', (e) => { if (e.target === el.settingsModal) closeSettings(); });
+  el.settingsOptions.addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (v === 'ask') store.removeItem('zt.closeAction'); else store.setItem('zt.closeAction', v);
+    dlog('close preference -> ' + v);
+  });
+  el.quitConfirm.addEventListener('click', doQuit);
+  el.quitCancel.addEventListener('click', closeQuit);
+  el.quitModal.addEventListener('click', (e) => { if (e.target === el.quitModal) closeQuit(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeAbout(); el.closeModal.classList.remove('show'); closeQuit(); closeSettings(); } });
+  syncAboutVersion();
 
   // window close (titlebar X) → minimize-to-tray or exit, with a remembered choice
   const TAPI = window.__TAURI__ && window.__TAURI__.event;
@@ -497,17 +600,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   el.closeMinimize.addEventListener('click', () => {
     if (el.closeRemember.checked) store.setItem('zt.closeAction', 'minimize');
+    dlog('close → minimize (remember=' + el.closeRemember.checked + ')');
     el.closeModal.classList.remove('show');
     if (_invoke) _invoke('minimize_to_tray');
   });
   el.closeExit.addEventListener('click', () => {
     if (el.closeRemember.checked) store.setItem('zt.closeAction', 'exit');
+    dlog('close → exit (remember=' + el.closeRemember.checked + ')');
     el.closeModal.classList.remove('show');
     if (_invoke) _invoke('quit_app');
   });
   el.closeModal.addEventListener('click', (e) => { if (e.target === el.closeModal) el.closeModal.classList.remove('show'); });
 
   safeRefresh();
-  statusTimer = setInterval(refreshStatusOnly, 5000);
+  dlog('ui ready lang=' + lang + ' theme=' + theme + ' mock=' + !!ZT._mock);
 });
-window.addEventListener('beforeunload', () => { if (statusTimer) clearInterval(statusTimer); });

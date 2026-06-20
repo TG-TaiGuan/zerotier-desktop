@@ -12,13 +12,15 @@ A tiny, polished desktop client for the local [`zerotier-one`](https://www.zerot
 
 ## ✨ Features
 
-- **Node status** — address, online state, version, with a live pulsing indicator and **auto-reconnect** (a background heartbeat turns the dot red on disconnect and restores green + refreshes the data automatically when the service is back — no manual action needed).
+- **Node status** — node address, online state, and version with a live pulsing indicator; hit **Refresh** (or any action) to re-sync with the service.
 - **Networks** — switch between joined networks via tabs. **Leaving a network keeps it in the list** (shown red / offline) with a one-click **Reconnect**.
 - **Per-network neighbors (ARP)** — for the selected network's interface, lists the same-subnet peers (Internet address · physical address · type) live from the OS ARP cache, each with a **green / red online-offline dot**. Broadcast / network / multicast entries are filtered out.
+- **Allow toggles** — flip each network's **Allow Managed Addresses / Global IPs / Default Route / DNS** from a row of cards above the neighbors; the change is sent to the service and the cards re-sync automatically.
 - **Join** by 16-hex network ID — **duplicate-aware** (re-joining an existing network just opens it); after joining a new one it **polls until the network appears, then auto-opens** its view.
 - **System tray** — a ZeroTier tray icon; **left-click** or the right-click menu (**Show** / **Quit**) summons the window. **Single-instance** — launching the exe again just brings the running app to the front.
-- **Close behavior** — the window's ✕ asks **Minimize-to-tray vs Exit** with a *remember my choice* option; the sidebar's red **Quit** button exits immediately (after a confirm).
+- **Close behavior & Settings** — the window's ✕ asks **Minimize-to-tray vs Exit** with a *remember my choice* option; the **Settings** gear sets that default (Minimize / Exit / Ask). The sidebar's red **Quit** exits after a confirm.
 - **Light / dark theme** (solid colors), **English / 中文** (in-place relabel, never refetches), GSAP animations, **SVG icons only** (no emoji), responsive layout.
+- **Diagnostic logging** — every launch writes `logs/latest.log` (plus timestamped archives) capturing the ZeroTier/ARP calls and the UI flow, so issues are easy to report.
 
 ![Light theme](docs/screenshot-light.png)
 
@@ -28,8 +30,8 @@ A tiny, polished desktop client for the local [`zerotier-one`](https://www.zerot
 
 Grab the latest installer or portable build from the [**Releases**](../../releases) page.
 
-- **Installer** — `ZeroTier-Desktop_1.1.0_x64-setup.exe` (~2 MB). Installs to *Program Files*; bootstraps the WebView2 runtime if missing.
-- **Portable** — `ZeroTier-Desktop-1.1.0-portable.zip`. Unzip and run `ZeroTier Desktop.exe` (keep `WebView2Loader.dll` next to it). Requires the [WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (preinstalled on Windows 11).
+- **Installer** — `ZeroTier-Desktop_1.2.0_x64-setup.exe` (~2 MB). Installs to *Program Files*; bootstraps the WebView2 runtime if missing.
+- **Portable** — `ZeroTier-Desktop-1.2.0-portable.zip`. Unzip and run `ZeroTier Desktop.exe` (keep `WebView2Loader.dll` next to it). Requires the [WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (preinstalled on Windows 11).
 
 ---
 
@@ -72,6 +74,18 @@ node tools/capture-preview.js .preview   # (capture tool lives in the legacy Ele
 - **ZeroTier API** — plain HTTP on `127.0.0.1:9993`, authenticated via the `X-ZT1-Auth` header with the service's `authtoken.secret` (auto-detected per platform). Endpoints: `GET /status`, `GET /network`, `POST /network/<id>`, `DELETE /network/<id>`.
 - **Same-subnet neighbors** — the ZeroTier API only exposes VL1 peers (no per-network L3 neighbors), so the app reads the OS ARP cache for the selected interface (`arp -a -N <ip>` on Windows), GBK-decodes it (so localized `静态/动态` types parse), and filters to the network's subnet (excluding broadcast `.255` / network `.0`).
 - All of this lives in the **Rust backend** (`src-tauri/src/main.rs`) and is exposed to the frontend via Tauri `invoke` commands — every command returns `{ ok, data?, error? }`.
+
+---
+
+## 🐛 Troubleshooting & logs
+
+Every launch writes a rolling log so problems are easy to report:
+
+- **Portable** — `logs/` next to the exe. **Installer** (under *Program Files*) — `%LOCALAPPDATA%\ZeroTier Desktop\logs`.
+- `logs/latest.log` — the current run; `logs/log-<UTC time>.log` — previous runs (the 10 newest are kept). Timestamps are UTC.
+- It captures the whole flow in one place: backend ZeroTier/ARP calls (`[zt]` / `[arp]`) interleaved with the UI flow (`[ui]` — join → wait → select, leave, reconnect, online/offline transitions, close choice).
+
+If something fails (e.g. a join doesn't take), reproduce it, then attach `logs/latest.log` to the issue — the `[zt]` and `[ui] join …` lines show exactly where it broke.
 
 ---
 

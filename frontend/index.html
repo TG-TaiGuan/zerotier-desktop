@@ -17,6 +17,9 @@
     <div class="spacer"></div>
     <button class="nav-icon" id="themeBtn" type="button" data-i18n-title="theme.toggle" title="Toggle theme"></button>
     <button class="nav-icon" id="langBtn" type="button" data-i18n-title="lang.toggle" title="Switch language">EN</button>
+    <button class="nav-icon" id="settingsBtn" type="button" data-i18n-title="settings.title" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
     <button class="nav-icon quit-btn" id="quitBtn" type="button" data-i18n-title="quit" title="Quit">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
     </button>
@@ -62,7 +65,7 @@
   <div class="modal-box">
     <img class="modal-icon" src="assets/app-icon.png" alt="" />
     <h3>ZeroTier Desktop</h3>
-    <div class="modal-sub">v1.0.0 · unofficial</div>
+    <div class="modal-sub" id="aboutVersion">v1.1.0 · unofficial</div>
     <p class="modal-text" data-i18n="about.text">A tiny desktop client for the local zerotier-one service — view your networks and same-subnet neighbors, and join/leave networks.</p>
     <div class="modal-note">Not affiliated with ZeroTier, Inc.</div>
     <button class="btn primary btn-sm" id="aboutClose" type="button">Close</button>
@@ -84,6 +87,33 @@
       </button>
       <button class="btn danger" id="closeExit" type="button" data-i18n="close.exit">Exit</button>
     </div>
+  </div>
+</div>
+
+<!-- Quit confirm dialog (sidebar Quit button) -->
+<div class="modal" id="quitModal">
+  <div class="modal-box">
+    <div class="modal-badgewrap"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></div>
+    <h3 data-i18n="quit">Quit</h3>
+    <div class="modal-sub" data-i18n="quit.confirm">Close ZeroTier Desktop?</div>
+    <div class="close-actions">
+      <button class="btn" id="quitCancel" type="button" data-i18n="common.cancel">Cancel</button>
+      <button class="btn danger" id="quitConfirm" type="button" data-i18n="quit">Exit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings dialog (default close-window behavior) -->
+<div class="modal" id="settingsModal">
+  <div class="modal-box">
+    <h3 data-i18n="settings.title">Settings</h3>
+    <div class="modal-sub" data-i18n="settings.closeBehavior">Default behavior when closing the window</div>
+    <div class="settings-options" id="settingsOptions">
+      <label class="setting-opt"><input type="radio" name="closeAction" value="minimize" /><span data-i18n="close.minimize">Minimize</span></label>
+      <label class="setting-opt"><input type="radio" name="closeAction" value="exit" /><span data-i18n="close.exit">Exit</span></label>
+      <label class="setting-opt"><input type="radio" name="closeAction" value="ask" /><span data-i18n="settings.ask">Ask every time</span></label>
+    </div>
+    <button class="btn primary btn-sm" id="settingsClose" type="button" data-i18n="common.done">Done</button>
   </div>
 </div>
 

@@ -5,13 +5,108 @@
 
 use serde_json::{json, Value};
 use std::fs;
+use std::io::Write;
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tauri::Manager;
 use tauri::Emitter;
 
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 9993;
+
+/* ---------- file logging (logs/latest.log + timestamped archives) ---------- */
+// One rolling log per launch: the current run writes logs/latest.log; on the next
+// launch the previous one is rotated to logs/log-<UTC time>.log (oldest pruned past 10).
+// The frontend UI flow is piped into the same file via the `log_frontend` command,
+// so the whole join → wait → select sequence is visible in one place.
+static LOG_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
+
+fn epoch_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+// Civil date from days since 1970-01-01 (Howard Hinnant's algorithm). UTC — note
+// the header in latest.log says so; we avoid pulling chrono to stay build-offline.
+fn format_epoch(secs: u64) -> String {
+    let days = (secs / 86400) as i64;
+    let rem = secs % 86400;
+    let h = rem / 3600;
+    let m = (rem % 3600) / 60;
+    let s = rem % 60;
+    let z = days + 719468;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
+    let doe = z - era * 146097;                                   // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);            // [0, 365]
+    let mp = (5 * doy + 2) / 153;                                 // [0, 11]
+    let d = doy - (153 * mp + 2) / 5 + 1;                         // [1, 31]
+    let mth = if mp < 10 { mp + 3 } else { mp - 9 };              // [1, 12]
+    let yr = if mth <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", yr, mth, d, h, m, s)
+}
+fn resolve_log_dir() -> std::path::PathBuf {
+    // Prefer next to the exe (portable-friendly); fall back to %LOCALAPPDATA% when the
+    // exe dir isn't writable (e.g. installer under Program Files).
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let d = parent.join("logs");
+            if fs::create_dir_all(&d).is_ok() {
+                let probe = d.join(".wprobe");
+                if fs::write(&probe, b"x").is_ok() {
+                    let _ = fs::remove_file(&probe);
+                    return d;
+                }
+            }
+        }
+    }
+    let base = std::env::var_os("LOCALAPPDATA")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let d = base.join("ZeroTier Desktop").join("logs");
+    let _ = fs::create_dir_all(&d);
+    d
+}
+fn init_logging() {
+    let dir = resolve_log_dir();
+    let latest = dir.join("latest.log");
+    // Rotate the previous run's latest.log into a timestamped archive.
+    if let Ok(meta) = fs::metadata(&latest) {
+        if meta.len() > 0 {
+            let stamp = meta.modified().ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| format_epoch(d.as_secs()).replace(':', "-"))
+                .unwrap_or_else(|| "previous".to_string());
+            let _ = fs::rename(&latest, dir.join(format!("log-{}.log", stamp)));
+        }
+    }
+    // Prune archives: keep the 10 newest by filename (timestamps sort lexically).
+    if let Ok(entries) = fs::read_dir(&dir) {
+        let mut arcs: Vec<(String, std::path::PathBuf)> = entries.filter_map(|e| {
+            let p = e.ok()?.path();
+            let n = p.file_name()?.to_string_lossy().into_owned();
+            (n.starts_with("log-") && n.ends_with(".log")).then(|| (n, p))
+        }).collect();
+        arcs.sort_by(|a, b| b.0.cmp(&a.0));
+        for (_, p) in arcs.into_iter().skip(10) { let _ = fs::remove_file(p); }
+    }
+    let _ = LOG_PATH.set(latest);
+    log(&format!("=== ZeroTier Desktop v{} - session start (timestamps are UTC) ===", env!("CARGO_PKG_VERSION")));
+}
+fn log(msg: &str) {
+    let line = format!("[{}] {}\n", format_epoch(epoch_secs()), msg);
+    if let Some(p) = LOG_PATH.get() {
+        if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(p) {
+            let _ = f.write_all(line.as_bytes());
+        }
+    }
+    // Mirror to the console in debug builds (release hides the console).
+    #[cfg(debug_assertions)]
+    eprint!("{}", line);
+}
 
 /* ---------- auth token ---------- */
 fn candidate_token_paths() -> Vec<std::path::PathBuf> {
@@ -39,33 +134,55 @@ fn load_token() -> Result<String, String> {
 }
 
 /* ---------- ZeroTier HTTP API (plain HTTP on 127.0.0.1:9993) ---------- */
-fn zt_request(path: &str, method: &str) -> Value {
+fn zt_request(path: &str, method: &str, body: Option<&str>) -> Value {
     let token = match load_token() {
         Ok(t) => t,
         Err(e) => return json!({ "ok": false, "error": e }),
     };
     let url = format!("http://{}:{}{}", HOST, PORT, path);
-    let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(6)).build();
-    let req = match method {
-        "POST" => agent.post(&url),
-        "DELETE" => agent.delete(&url),
-        _ => agent.get(&url),
+    log(&format!("[zt] {} {} {}", method, url, body.map(|_| "(body)").unwrap_or("")));
+    // A fresh agent per request avoids stale pooled/keep-alive connections to the
+    // local service (which could time out on a join POST).
+    let do_req = || {
+        let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(10)).build();
+        let req = match method {
+            "POST" => agent.post(&url),
+            "DELETE" => agent.delete(&url),
+            _ => agent.get(&url),
+        };
+        match body {
+            Some(b) => req.set("X-ZT1-Auth", &token).set("Content-Type", "application/json").send_string(b),
+            None => req.set("X-ZT1-Auth", &token).call(),
+        }
     };
-    match req.set("X-ZT1-Auth", &token).call() {
+    let mut res = do_req();
+    // Retry once on a transport/connect error (transient local hiccup).
+    if matches!(res.as_ref(), Err(ureq::Error::Transport(_))) {
+        log("[zt] transport error, retrying once…");
+        std::thread::sleep(Duration::from_millis(500));
+        res = do_req();
+    }
+    match res {
         Ok(r) => {
-            let body = r.into_string().unwrap_or_default();
-            let parsed: Value = if body.trim().is_empty() {
+            let status = r.status();
+            let text = r.into_string().unwrap_or_default();
+            log(&format!("[zt] {} -> HTTP {} ({} bytes)", method, status, text.len()));
+            let parsed: Value = if text.trim().is_empty() {
                 json!({})
             } else {
-                serde_json::from_str(&body).unwrap_or_else(|_| json!({}))
+                serde_json::from_str(&text).unwrap_or_else(|_| json!({}))
             };
             json!({ "ok": true, "data": parsed })
         }
         Err(ureq::Error::Status(code, r)) => {
-            let body = r.into_string().unwrap_or_default();
-            json!({ "ok": false, "error": format!("Service responded HTTP {}", code), "status": code, "raw": body.chars().take(200).collect::<String>() })
+            let text = r.into_string().unwrap_or_default();
+            log(&format!("[zt] {} -> HTTP {}", method, code));
+            json!({ "ok": false, "error": format!("Service responded HTTP {}", code), "status": code, "raw": text.chars().take(200).collect::<String>() })
         }
-        Err(e) => json!({ "ok": false, "error": format!("Cannot reach zerotier-one: {}", e) }),
+        Err(e) => {
+            log(&format!("[zt] {} -> ERROR {}", method, e));
+            json!({ "ok": false, "error": format!("Cannot reach zerotier-one: {}", e) })
+        }
     }
 }
 
@@ -141,31 +258,34 @@ fn parse_arp(text: &str, cidr: &str) -> Value {
 }
 
 fn do_arp(ip: &str, cidr: &str) -> Value {
+    log(&format!("[arp] arp -a -N {} ({})", ip, cidr));
     if ip_to_int(ip).is_none() {
         return json!({ "ok": false, "error": "Invalid interface IP" });
     }
     let out = Command::new("arp").args(["-a", "-N", ip]).output();
     let out = match out {
         Ok(o) => o,
-        Err(e) => return json!({ "ok": false, "error": format!("ARP command failed: {}", e) }),
+        Err(e) => { log(&format!("[arp] command failed: {}", e)); return json!({ "ok": false, "error": format!("ARP command failed: {}", e) }); }
     };
     let (text, _, _) = encoding_rs::GBK.decode(&out.stdout);
-    parse_arp(&text, cidr)
+    let parsed = parse_arp(&text, cidr);
+    log(&format!("[arp] stdout {} bytes, stderr {} bytes -> {} rows", out.stdout.len(), out.stderr.len(), parsed["rows"].as_array().map(|a| a.len()).unwrap_or(0)));
+    parsed
 }
 
 /* ---------- Tauri commands ---------- */
 #[tauri::command]
-fn get_status() -> Value { zt_request("/status", "GET") }
+fn get_status() -> Value { zt_request("/status", "GET", None) }
 
 #[tauri::command]
-fn get_networks() -> Value { zt_request("/network", "GET") }
+fn get_networks() -> Value { zt_request("/network", "GET", None) }
 
 #[tauri::command]
 fn join_network(id: String) -> Value {
     if !valid_nwid(&id) {
         return json!({ "ok": false, "error": "Network ID must be 16 hex characters." });
     }
-    zt_request(&format!("/network/{}", id.trim()), "POST")
+    zt_request(&format!("/network/{}", id.trim()), "POST", None)
 }
 
 #[tauri::command]
@@ -173,7 +293,22 @@ fn leave_network(id: String) -> Value {
     if !valid_nwid(&id) {
         return json!({ "ok": false, "error": "Network ID must be 16 hex characters." });
     }
-    zt_request(&format!("/network/{}", id.trim()), "DELETE")
+    zt_request(&format!("/network/{}", id.trim()), "DELETE", None)
+}
+
+// Toggle one of the network's four "Allow" flags (managed/global/default-route/DNS).
+// Only the known keys are accepted, so the frontend can't POST arbitrary config.
+#[tauri::command]
+fn set_net_flag(id: String, key: String, value: bool) -> Value {
+    if !valid_nwid(&id) {
+        return json!({ "ok": false, "error": "Network ID must be 16 hex characters." });
+    }
+    let key = match key.as_str() {
+        "allowManaged" | "allowGlobal" | "allowDefault" | "allowDNS" => key,
+        _ => return json!({ "ok": false, "error": "Unknown flag." }),
+    };
+    let body = format!("{{\"{}\":{}}}", key, value);
+    zt_request(&format!("/network/{}", id.trim()), "POST", Some(&body))
 }
 
 #[tauri::command]
@@ -187,23 +322,36 @@ fn minimize_to_tray(app: tauri::AppHandle) {
 
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle) {
+    log("quit_app — exiting");
     app.exit(0);
 }
 
+// The frontend pipes its UI flow (join / wait / leave / reconnect / close choice)
+// through here so it lands in the same logs/latest.log as the backend [zt]/[arp] lines.
+#[tauri::command]
+fn log_frontend(msg: String) { log(&format!("[ui] {}", msg)); }
+
+// App version for the About dialog (kept in sync with Cargo.toml / tauri.conf.json).
+#[tauri::command]
+fn get_app_version() -> String { env!("CARGO_PKG_VERSION").to_string() }
+
 fn main() {
+    init_logging();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // A second launch just summons the existing window to the front.
+            log("second launch — focusing existing window");
             for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); }
         }))
         .invoke_handler(tauri::generate_handler![
-            get_status, get_networks, join_network, leave_network, get_arp,
-            minimize_to_tray, quit_app
+            get_status, get_networks, join_network, leave_network, set_net_flag, get_arp,
+            minimize_to_tray, quit_app, log_frontend, get_app_version
         ])
         // Intercept the window's X (close) button — the frontend asks how to handle it
         // (minimize-to-tray vs exit, with a remembered choice).
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                log("window close requested — deferring to UI");
                 api.prevent_close();
                 let _ = window.app_handle().emit("close-requested", ());
             }
@@ -221,19 +369,21 @@ fn main() {
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => { for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); } }
-                    "quit" => { app.exit(0); }
+                    "show" => { log("tray: show"); for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); } }
+                    "quit" => { log("tray: quit"); app.exit(0); }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
                         let app = tray.app_handle();
+                        log("tray: left-click restore");
                         for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); }
                     }
                 })
                 .build(app)?;
             // Ensure the window is visible and focused on startup (never starts hidden).
             for w in app.webview_windows().values() { let _ = w.show(); let _ = w.set_focus(); }
+            log("setup complete - window shown");
             Ok(())
         })
         .run(tauri::generate_context!())
